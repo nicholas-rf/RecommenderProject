@@ -1,6 +1,7 @@
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import seaborn as sns
 """
 Contains modules for exploratory data analysis and transformations specific to the microsoft MIND dataset.
 """
@@ -23,6 +24,25 @@ Contains modules for exploratory data analysis and transformations specific to t
 ## Starting with basic EDA
 
 ## Everything in this file is rough draft as of now as it has yet to be tested inside of a notebook, however that is fine
+def data_to_csv(fpath='../MIND_small/tsv/behaviors.tsv', behaviors=True):
+    """
+    Takes a tab seperated variable file from the MIND dataset, adds columns to it, and exports it as a CSV.
+
+    Args:
+        fpath (str) : The path to the directory that the csv will be output to.
+
+    Returns:
+        None
+    """
+    if behaviors:
+        behaviors_columns = ['impression_id', 'user_id', 'time', 'history', 'impressions']
+        df = pd.read_csv(fpath, sep='\t', names=behaviors_columns)
+        df.to_csv('MIND_small/csv/behaviors.csv')
+        
+    else:
+        news_columns = ['news_id', 'category', 'sub_category', 'title', 'abstract', 'url', 'title_entities', 'abstract_entities']
+        df = pd.read_csv(fpath, sep='\t', names=news_columns)
+        df.to_csv('MIND_small/csv/news.csv')
 
 def check_data_types(dataframe):
     """
@@ -71,16 +91,29 @@ def check_distributions(dataframe):
     # Return the chart object for use in the jupyterNotebook
     return feature_distributions
 
-def plot_genres(dataframe):
+# features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
+
+def plot_categories(dataframe: pd.DataFrame) -> sns.FacetGrid:
     """
-    Creates a data visualization to explore the distribution of genres and subgenres.
+    Creates a data visualization to explore the distribution of categories and sub-categories.
 
     Args:
         dataframe (pd.DataFrame) : A dataframe from which genres and subgenres can be extracted.  
 
     Returns:
-        genre_distribution (sns.something) : A sns plot object containing the distributions for genres and subgenre 
+        categories_distribution (sns.FacetGrid) : A sns plot object containing the distributions for genres and subgenre 
     """
+    
+    # Initialize a list contianing the names of the categories we will be examining
+    category_cols = ['category','sub_category']
+
+    # Utilize dataframe methods to create a dataframe that is counts of each category
+    category_data = dataframe.group_by(category_cols).agg('count')
+    print(category_data)
+    
+
+
+
 
 def check_temporal_clicks(dataframe):
     # plots clickthrough rates throughout the day to analyze the affect that time has on clickthrough rates
