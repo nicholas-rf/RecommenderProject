@@ -58,12 +58,26 @@ def check_data_types(dataframe):
 
     return pd.DataFrame(data=dataframe.dtype.tolist(), columns=dataframe.columns)
 
-def plot_categories(news: pd.DataFrame) -> sns.FacetGrid:
+def plot_categories(news):
+    """
+    Creates a sns countplot for all categories to show dominant categories.
+
+    Args: 
+        news (pd.DataFrame) : The news dataframe from which categories get plotted.
+    
+    Returns:
+        fig (sns.countplot) : An sns.countplot containing the visualization for genres.
+    """
+    fig = sns.countplot(news, y='category', hue='category')
+    return fig
+
+
+def plot_sub_categories(news: pd.DataFrame) -> sns.FacetGrid:
     """
     Creates a data visualization to explore the distribution of categories and sub-categories.
 
     Args:
-        news (pd.DataFrame) : The news dataframe from which genres and subgenres can be extracted.  
+        news (pd.DataFrame) : The news dataframe from which categories and sub-categories can be extracted.  
 
     Returns:
         fig (px.treemap) : A plotly treemap plot containing the visualization for genres and subgenre 
