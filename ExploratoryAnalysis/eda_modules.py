@@ -3,6 +3,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
+import plotly.graph_objects as go
 """
 Contains modules for exploratory data analysis and transformations specific to the microsoft MIND dataset.
 """
@@ -25,7 +26,7 @@ Contains modules for exploratory data analysis and transformations specific to t
 ## Starting with basic EDA
 
 ## Everything in this file is rough draft as of now as it has yet to be tested inside of a notebook, however that is fine
-def data_to_csv(fpath='../MIND_small/tsv/behaviors.tsv', behaviors=True):
+def data_to_csv(fpath : str ='../MIND_small/tsv/behaviors.tsv', behaviors : bool =True) -:
     """
     Takes a tab seperated variable file from the MIND dataset, adds columns to it, and exports it as a CSV.
 
@@ -58,7 +59,7 @@ def check_data_types(dataframe):
 
     return pd.DataFrame(data=dataframe.dtype.tolist(), columns=dataframe.columns)
 
-def plot_categories(news):
+def plot_categories(news: pd.DataFrame) -> sns.FacetGrid:
     """
     Creates a sns countplot for all categories to show dominant categories.
 
@@ -72,7 +73,7 @@ def plot_categories(news):
     return fig
 
 
-def plot_sub_categories(news: pd.DataFrame) -> sns.FacetGrid:
+def plot_sub_categories(news: pd.DataFrame) -> go.Figure:
     """
     Creates a data visualization to explore the distribution of categories and sub-categories.
 
@@ -80,7 +81,7 @@ def plot_sub_categories(news: pd.DataFrame) -> sns.FacetGrid:
         news (pd.DataFrame) : The news dataframe from which categories and sub-categories can be extracted.  
 
     Returns:
-        fig (px.treemap) : A plotly treemap plot containing the visualization for genres and subgenre 
+        fig (go.Figure) : A plotly treemap plot containing the visualization for genres and subgenre 
     """
     
     # Initialize a list contianing the category and sub_category columns.
