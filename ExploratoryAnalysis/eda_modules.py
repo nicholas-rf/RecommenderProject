@@ -2,6 +2,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px
 """
 Contains modules for exploratory data analysis and transformations specific to the microsoft MIND dataset.
 """
@@ -57,59 +58,34 @@ def check_data_types(dataframe):
 
     return pd.DataFrame(data=dataframe.dtype.tolist(), columns=dataframe.columns)
 
-def check_distributions(dataframe):
-    ## maybe, could be totally useless now that I think about it hahahaha
-    """
-    Takes a dataframe, melts it and then plots it so that the distributions of each feature can be examined.
-
-    Args:
-        dataframe (pd.DataFrame) : A dataframe containing features to visualize.
-
-    Returns:
-        feature_distributions (sns.FacetGrid) : A SNS facet grid containing charts with the features visualizations.    
-    """
-
-    # Initialize the dataframe
-    df = dataframe.copy()
-
-    # Get the features for extraction
-    features = df.columns
-
-    # Melt the data so that distributions can be examined
-    df_long = df.melt(id_vars=['genre', 'subgenre'], value_vars=features, var_name='feature', value_name='value')
-
-    # Create a seaborn facetGrid object with the metled dataframe to house all distribution graphs
-    feature_distributions = sns.FacetGrid(df_long, col="feature", hue="genre", palette="rocket_r", col_wrap=3, sharex=False, sharey=False)
-    feature_distributions = (feature_distributions.map(sns.histplot, "value", element="step").add_legend())
-
-    # Create titles for the distributions based off of the column names
-    feature_distributions.set_titles("{col_name}")
-
-    # Establish a tight layout
-    feature_distributions.fig.tight_layout()
-
-    # Return the chart object for use in the jupyterNotebook
-    return feature_distributions
-
-# features: Dict[Text, tf.Tensor], training=False) -> tf.Tensor:
-
-def plot_categories(dataframe: pd.DataFrame) -> sns.FacetGrid:
+def plot_categories(news: pd.DataFrame) -> sns.FacetGrid:
     """
     Creates a data visualization to explore the distribution of categories and sub-categories.
 
     Args:
-        dataframe (pd.DataFrame) : A dataframe from which genres and subgenres can be extracted.  
+        news (pd.DataFrame) : The news dataframe from which genres and subgenres can be extracted.  
 
     Returns:
-        categories_distribution (sns.FacetGrid) : A sns plot object containing the distributions for genres and subgenre 
+        fig (px.treemap) : A plotly treemap plot containing the visualization for genres and subgenre 
     """
     
-    # Initialize a list contianing the names of the categories we will be examining
+    # Initialize a list contianing the category and sub_category columns.
     category_cols = ['category','sub_category']
 
-    # Utilize dataframe methods to create a dataframe that is counts of each category
-    category_data = dataframe.group_by(category_cols).agg('count')
-    print(category_data)
+    # Group by the categories and count the total number of articles in each one.
+    sub_category_data = news.groupby(category_cols).agg(number_of_articles=('news_id','count'))
+
+    # Reset the index to make the data into long-format.
+    sub_category_data.reset_index(inplace=True)
+
+    # Set up a plotly treemap with the category data determining size of blocks by the number of articles.
+    fig = px.treemap(sub_category_data, 
+                    path=['category', 'sub_category'],  # Hierarchical structure
+                    values='number_of_articles',            # Size based on Value1
+                    title='Categories and their sub-categories')
+    
+    # Return the figure so adjustments can be made inside of the notebook for experimentation.
+    return fig
     
 
 
