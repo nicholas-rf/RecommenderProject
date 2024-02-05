@@ -5,3 +5,6 @@ DESIGN DOCUMENT FOR TENSORFLOW MODELS:
 tensorflow_recommenders_quickstart.py : Quickstart implementation for a tensorflow matrix factorization model with the movielens dataset. More information found within project file. 
 
 tensorflow_retrieval_docs.py : A tensorflow recommenders model for retrieval utilizing the movielens dataset and no additional features. Includes notes on whats happening for comprehension. 
+
+tensorflow_ranking_docs.py : A tensorflow recommenders model for ranking utilizing the movielens dataset and no additional features. Includes notes on whats happening for comprehension. Ranking is the next step in a recommender after retrieval and helps fine-tune recommendations for the model.
+
