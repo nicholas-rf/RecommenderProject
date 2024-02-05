@@ -10,6 +10,9 @@ import plotly.graph_objects as go
 Contains modules for exploratory data analysis and transformations specific to the microsoft MIND dataset.
 """
 
+
+### Introductory data processing ### 
+
 def data_to_csv(fpath : str ='../MIND_small/tsv/behaviors.tsv', behaviors : bool =True) -> None:
     """
     Takes a tab seperated variable file from the MIND dataset, adds columns to it, and exports it as a CSV.
@@ -55,6 +58,8 @@ def check_data_types(dataframe):
     return pd.DataFrame(data=dataframe.dtype.tolist(), columns=dataframe.columns)
 
 
+### News Dataset Methods ### 
+
 def plot_categories(news: pd.DataFrame) -> matplotlib.axes.Axes:
     """
     Creates a sns countplot for all categories to show dominant categories.
@@ -71,7 +76,7 @@ def plot_categories(news: pd.DataFrame) -> matplotlib.axes.Axes:
     return fig
 
 
-def plot_sub_categories(news: pd.DataFrame) -> go.Figure:
+def plot_sub_categories(news : pd.DataFrame) -> go.Figure:
     """
     Creates a data visualization to explore the distribution of categories and sub-categories.
 
@@ -100,6 +105,23 @@ def plot_sub_categories(news: pd.DataFrame) -> go.Figure:
     # Return the figure so adjustments can be made inside of the notebook for experimentation.
     return fig
     
+def missing_news_analysis(news : pd.DataFrame):
+    """
+    Creates a chart for missing values in the news dataset to determine missingness.
+
+    Args:
+        news (pd.DataFrame) : The news dataset to examine missing values from.
+
+    Returns:
+        fig (some figure type) : something
+    """
+    missing_vals = news.isna()
+    missing_vals['abstract'] # can utilize this as a mask to get values where missing abstract is true in the main, to see if theres a
+    # majority of missing abstracts for a specific category 
+
+
+
+
 def check_temporal_clicks(dataframe):
     # plots clickthrough rates throughout the day to analyze the affect that time has on clickthrough rates
     """

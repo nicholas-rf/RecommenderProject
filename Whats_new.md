@@ -7,7 +7,7 @@ Tensorflow model documentation for retrieval and ranking has been written so tha
 Not much on this front, the news dataset is in TSV format which doesn't contain columns, so I turned them into dataframes, added columns and exported as csv. 
 
 ## EDA:
-I have started the EDA process by attempting to chart some intial distributions of categories and sub-categories in the news dataset. The current idea I had was to analyze the news and behavior datasets seperately at first, and then to analyze them within context of each other. Currently exploring data visualizations for attractive EDA.   
+I have started the EDA process by attempting to chart some intial distributions of categories and sub-categories in the news dataset. The current idea I had was to analyze the news and behavior datasets seperately at first, and then to analyze them within context of each other. Currently exploring data visualizations for attractive EDA.
 
 
 ## Potential: 
