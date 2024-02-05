@@ -1,6 +1,8 @@
+from numpy import mat
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.axes
 import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
@@ -8,25 +10,7 @@ import plotly.graph_objects as go
 Contains modules for exploratory data analysis and transformations specific to the microsoft MIND dataset.
 """
 
-
-## What do we want to do for our EDA with the MIND dataset? ## 
-
-##  Want to analyze the tail of reviews, to check if we want to implement an IDF weight to improve coverage
-##  Want to determine counts of the genres of all reviews
-##  Want to evaluate how many unique users there are, and the most popular interactions
-
-##  maybe want to create a total impressions column for news articles based off of users interaction history 
-##  distributions of categories and subcategories (maybe heatmaps)
-
-## all unique user ids? 
-
-## maybe feature extraction for genres?
-
-## want to keep boilerplate minimal in jupyter book so will define functions to be called here
-## Starting with basic EDA
-
-## Everything in this file is rough draft as of now as it has yet to be tested inside of a notebook, however that is fine
-def data_to_csv(fpath : str ='../MIND_small/tsv/behaviors.tsv', behaviors : bool =True) -:
+def data_to_csv(fpath : str ='../MIND_small/tsv/behaviors.tsv', behaviors : bool =True) -> None:
     """
     Takes a tab seperated variable file from the MIND dataset, adds columns to it, and exports it as a CSV.
 
@@ -36,13 +20,24 @@ def data_to_csv(fpath : str ='../MIND_small/tsv/behaviors.tsv', behaviors : bool
     Returns:
         None
     """
+    
+    # If we are changing the format of the behaviors tsv, then use that one.
     if behaviors:
+
+        # Column names to be added.
         behaviors_columns = ['impression_id', 'user_id', 'time', 'history', 'impressions']
+
+        # Read in the tsv adding names and then export it to a csv.
         df = pd.read_csv(fpath, sep='\t', names=behaviors_columns)
         df.to_csv('MIND_small/csv/behaviors.csv')
-        
+
+    # If we are are not changing the format of the behaviors tsv, use the news csv.
     else:
+
+        # Column names to be added.
         news_columns = ['news_id', 'category', 'sub_category', 'title', 'abstract', 'url', 'title_entities', 'abstract_entities']
+
+        # Read in the tsv adding names and then export it to a csv.
         df = pd.read_csv(fpath, sep='\t', names=news_columns)
         df.to_csv('MIND_small/csv/news.csv')
 
@@ -59,7 +54,8 @@ def check_data_types(dataframe):
 
     return pd.DataFrame(data=dataframe.dtype.tolist(), columns=dataframe.columns)
 
-def plot_categories(news: pd.DataFrame) -> sns.FacetGrid:
+
+def plot_categories(news: pd.DataFrame) -> matplotlib.axes.Axes:
     """
     Creates a sns countplot for all categories to show dominant categories.
 
@@ -69,6 +65,8 @@ def plot_categories(news: pd.DataFrame) -> sns.FacetGrid:
     Returns:
         fig (sns.countplot) : An sns.countplot containing the visualization for genres.
     """
+    
+    # Create a count plot for the category on the y axis so that all category names can fit into the chart.
     fig = sns.countplot(news, y='category', hue='category')
     return fig
 
@@ -102,10 +100,6 @@ def plot_sub_categories(news: pd.DataFrame) -> go.Figure:
     # Return the figure so adjustments can be made inside of the notebook for experimentation.
     return fig
     
-
-
-
-
 def check_temporal_clicks(dataframe):
     # plots clickthrough rates throughout the day to analyze the affect that time has on clickthrough rates
     """
@@ -162,3 +156,23 @@ def check_tail_articles(dataframe):
     Returns:
         article_tail_check (?sns.plot?) : A plot object to determine if a long tail is exhibited in the data. 
     """
+
+
+
+## What do we want to do for our EDA with the MIND dataset? ## 
+
+##  Want to analyze the tail of reviews, to check if we want to implement an IDF weight to improve coverage
+##  Want to determine counts of the genres of all reviews
+##  Want to evaluate how many unique users there are, and the most popular interactions
+
+##  maybe want to create a total impressions column for news articles based off of users interaction history 
+##  distributions of categories and subcategories (maybe heatmaps)
+
+## all unique user ids? 
+
+## maybe feature extraction for genres?
+
+## want to keep boilerplate minimal in jupyter book so will define functions to be called here
+## Starting with basic EDA
+
+## Everything in this file is rough draft as of now as it has yet to be tested inside of a notebook, however that is fine
