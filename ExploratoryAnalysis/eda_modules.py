@@ -6,14 +6,14 @@ import matplotlib.axes
 import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
+
 """
 Contains modules for exploratory data analysis and transformations specific to the microsoft MIND dataset.
 """
 
-
 ### Introductory data processing ### 
 
-def data_to_csv(fpath : str ='../MIND_small/tsv/behaviors.tsv', behaviors : bool =True) -> None:
+def data_to_csv(fpath : str = '../MIND_small/tsv/behaviors.tsv', behaviors : bool = True) -> None:
     """
     Takes a tab seperated variable file from the MIND dataset, adds columns to it, and exports it as a CSV.
 
@@ -120,6 +120,18 @@ def missing_news_analysis(news : pd.DataFrame):
     # majority of missing abstracts for a specific category 
 
 
+### behaviors dataset methods ###
+    
+    ## important things to do
+    ## plot distributions of time and interactions to gauge popular interaction times
+    ## analyze the average clickthrough rates of articles per genre (ie total reccommendations given and clickthrough rates ) 
+
+
+
+def check_genre_popularity():
+    """
+    
+    """
 
 
 def check_temporal_clicks(dataframe):
