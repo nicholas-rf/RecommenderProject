@@ -7,7 +7,7 @@ Tensorflow model documentation for retrieval and ranking has been written so tha
 Not much on this front, the news dataset is in TSV format which doesn't contain columns, so I turned them into dataframes, added columns and exported as csv. 
 
 ## EDA:
-I have started the EDA process by attempting to chart some intial distributions of categories and sub-categories in the news dataset. The current idea I had was to analyze the news and behavior datasets seperately at first, and then to analyze them within context of each other. Currently exploring data visualizations for attractive EDA.
+I have started the EDA process by attempting to chart some intial distributions of categories and sub-categories in the news dataset. The current idea I had was to analyze the news and behavior datasets seperately at first, and then to analyze them within context of each other. Currently exploring data visualizations for attractive EDA. Worked on writing some more down for the report and thinking of some unique things we can create regarding interactions for the recommender system. Current thoughts include but are not limited to: a popularity column in the news dataset that is a count of how many users have interacted with it to a certain point, some way of recognizing the users preferred genres, a way to get the genres of user history, putting some sort of information into the news dataset that contains optimal times for certain categories. Also worth mentioning that we can utilize the sequencing of items in a history as a feature interaction. Could also attempt to bootstrap or concatenate some information onto the news dataset with user preferences and facts about them, ie their age, sexuality, etc. 
 
 
 ## Potential: 
@@ -15,3 +15,6 @@ After we have an established model pipeline going and are able to truly experime
 
 ##### also hi coby :3
 
+
+##### interesting paper re creating good features within a recommender system with a neural network:
+https://arxiv.org/abs/2008.00404
