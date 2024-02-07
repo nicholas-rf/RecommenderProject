@@ -13,11 +13,12 @@ Contains modules for exploratory data analysis and transformations specific to t
 
 ### Introductory data processing ### 
 
-def data_to_csv(fpath : str = '../MIND_small/tsv/behaviors.tsv', behaviors : bool = True) -> None:
+def data_to_csv(behaviors : bool, fpath : str = '../MIND_small/tsv/behaviors.tsv') -> None:
     """
     Takes a tab seperated variable file from the MIND dataset, adds columns to it, and exports it as a CSV.
 
     Args:
+        behaviors (bool) : A boolean which signifies that the incomming tsv is either the behaviors tsv or the news tsv.
         fpath (str) : The path to the directory that the csv will be output to.
 
     Returns:
@@ -127,6 +128,29 @@ def missing_news_analysis(news : pd.DataFrame):
     ## analyze the average clickthrough rates of articles per genre (ie total reccommendations given and clickthrough rates ) 
 
 
+def create_popularity_df(news_frame : pd.DataFrame, behaviors_frame : pd.DataFrame) -> pd.DataFrame:
+    """ 
+    Creates a dataframe with the popularity of every sub-category and category. The category popularity gets calculated as a biproduct of the sub-category popularity.
+    
+    Args:
+        news_frame (pd.DataFrame) : The news dataframe so that the index can be set to the news ID and used when querying user history.
+        behaviors_frame (pd.DataFrame) : The behaviors dataframe so that users last interaction history can be used to understand category popularity.
+    
+    Returns:
+        category_popularity (pd.DataFrame) : A dataframe with categories as columns and popularity as a row.
+    """
+    
+    max_idcs = behaviors.groupby('user_id')['time'].idxmax()
+    copynews = news_frame.set_index('news_id')
+    max_behaviors = behaviors_frame.loc[max_idcs]
+    popoularity_dict = {category: 0 for category in pd.unique(copynews['category'])}
+    for history in max_behaviors['history']:
+        if type(history) != float:
+            for news_id in history.split():
+                sub_category = copynews.loc[news_id]['category']
+                popoularity_dict[sub_category] += 1
+
+    return pd.DataFrame(data=popoularity_dict, index=[1])
 
 def check_genre_popularity():
     """
