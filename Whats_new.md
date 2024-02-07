@@ -1,3 +1,14 @@
+# Whats new: Tuesday Feb 6th
+
+## Modelling:
+Added Tensorflow sequential recommender modelling docs that essentiall takes the user / query tower and makes it utilize a recurrent neural network for recommendations. It takes a sequence of user history and makes a recommendation from that 
+
+## Data processing / EDA:
+Worked heavily on making some charts for temporal data, specifically the popularity of specific categories given certain times.
+
+## Potential:
+Not much to report here, have considered implementing DLRM model with a tensorflow sequential stacked model which could be cool
+
 # Whats new:
 
 ## Modelling:
@@ -18,3 +29,5 @@ After we have an established model pipeline going and are able to truly experime
 
 ##### interesting paper re creating good features within a recommender system with a neural network:
 https://arxiv.org/abs/2008.00404
+
+
