@@ -140,7 +140,7 @@ def create_popularity_df(news_frame : pd.DataFrame, behaviors_frame : pd.DataFra
         category_popularity (pd.DataFrame) : A dataframe with categories as columns and popularity as a row.
     """
     
-    max_idcs = behaviors.groupby('user_id')['time'].idxmax()
+    max_idcs = behaviors_frame.groupby('user_id')['time'].idxmax()
     copynews = news_frame.set_index('news_id')
     max_behaviors = behaviors_frame.loc[max_idcs]
     popoularity_dict = {category: 0 for category in pd.unique(copynews['category'])}
