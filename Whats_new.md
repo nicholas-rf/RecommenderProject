@@ -1,3 +1,13 @@
+# Whats new: Wednesday Feb 7th
+
+## Modelling:
+Wrote down the documentation for preprocessing information with tensorflow for recommender systems.
+
+## Data processing / EDA:
+Updated function for getting the popularity of articles and categories via both user history and clickthrough rates.
+
+## Potential
+
 # Whats new: Tuesday Feb 6th
 
 ## Modelling:
