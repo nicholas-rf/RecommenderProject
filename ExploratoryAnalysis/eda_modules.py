@@ -127,10 +127,24 @@ def missing_news_analysis(news : pd.DataFrame):
     ## plot distributions of time and interactions to gauge popular interaction times
     ## analyze the average clickthrough rates of articles per genre (ie total reccommendations given and clickthrough rates ) 
 
-
-def create_popularity_df(news_frame : pd.DataFrame, behaviors_frame : pd.DataFrame) -> pd.DataFrame:
+def clean_impression(impression : str = 'N55689-1') -> dict:
     """ 
-    Creates a dataframe with the popularity of every sub-category and category. The category popularity gets calculated as a biproduct of the sub-category popularity.
+    Cleans up a user impression for its characteristics.
+
+    Args:
+        impression (str) : A users impression on a recommended article.
+    
+    Returns:
+        impression_info (dict) : A dictionary containing keys for the rating and article in the impression.
+    """
+    impression_info = impression.split('-')
+    return {'score':impression_info[1], 'article_ID':impression_info[0]}  
+
+def create_popularity_dfs(news_frame : pd.DataFrame, behaviors_frame : pd.DataFrame) -> (pd.DataFrame, pd.DataFrame):
+    """ 
+    Creates dataframes to get the popularity of categories and articles through a users history and clickthrough rates.
+    This is accomplished by iterating through the users in the behaviors dataframe, and incrementing dictionaries of articles and categories
+    that get placed into dataframes.
     
     Args:
         news_frame (pd.DataFrame) : The news dataframe so that the index can be set to the news ID and used when querying user history.
@@ -138,19 +152,44 @@ def create_popularity_df(news_frame : pd.DataFrame, behaviors_frame : pd.DataFra
     
     Returns:
         category_popularity (pd.DataFrame) : A dataframe with categories as columns and popularity as a row.
+        article_popularity (pd.DataFrame) : A dataframe with articles as rows and popularity as a column.
     """
     
-    max_idcs = behaviors_frame.groupby('user_id')['time'].idxmax()
+    # Done for getting last history of every user (can be used for popularity up to a time when training so keeping here)
+    # max_idcs = behaviors_frame.groupby('user_id')['time'].idxmax()
+    # max_behaviors = behaviors_frame.loc[max_idcs]
+
     copynews = news_frame.set_index('news_id')
-    max_behaviors = behaviors_frame.loc[max_idcs]
-    popoularity_dict = {category: 0 for category in pd.unique(copynews['category'])}
-    for history in max_behaviors['history']:
+    article_popularity_impression = {article: 0 for article in news_frame['news_id']}
+    article_popularity_history = {article: 0 for article in news_frame['news_id']}
+    category_popularity_impression = {category: 0 for category in pd.unique(copynews['category'])}
+    category_popularity_history = {category: 0 for category in pd.unique(copynews['category'])}
+    for history, impressions in zip(behaviors_frame['history'], behaviors_frame['impressions']):
         if type(history) != float:
             for news_id in history.split():
-                sub_category = copynews.loc[news_id]['category']
-                popoularity_dict[sub_category] += 1
+                category = copynews.loc[news_id]['category']
+                category_popularity_history[category] += 1
+                article_popularity_history[news_id] += 1
+                
 
-    return pd.DataFrame(data=popoularity_dict, index=[1])
+
+        if type(impressions) != float:
+            for impression in impressions.split():
+                impression_info = clean_impression(impression)
+                if impression_info['score'] == '1':
+                    article_popularity_impression[impression_info['article_ID']] += 1
+                    category = copynews.loc[impression_info['article_ID']]['category']
+                    category_popularity_impression[category] += 1
+
+    # then we have a large dictionary of articles and popularities
+    
+    article_popularity_impression = list(article_popularity_impression.items())
+    article_popularity_history = list(article_popularity_history.items())
+    
+    return (pd.DataFrame(data=category_popularity_history, index=[1]),
+            pd.DataFrame(data=category_popularity_impression, index=[1]),
+            pd.DataFrame(data=article_popularity_history, columns=['article', 'popularity_history']),
+            pd.DataFrame(data=article_popularity_impression, columns=['article', 'popularity_impression']))            
 
 def check_genre_popularity():
     """
