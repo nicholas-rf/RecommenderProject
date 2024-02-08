@@ -1,3 +1,10 @@
+# Whats new: Thursday Feb 8th
+
+## Modelling:
+Wrote down new information regarding leveraging context features with tensorflow models.
+
+## Data processing / EDA:
+
 # Whats new: Wednesday Feb 7th
 
 ## Modelling:
