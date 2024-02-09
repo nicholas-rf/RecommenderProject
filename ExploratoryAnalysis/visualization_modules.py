@@ -99,8 +99,8 @@ def plot_sub_categories(news : pd.DataFrame) -> go.Figure:
 
     # Set up a plotly treemap with the category data determining size of blocks by the number of articles.
     fig = px.treemap(sub_category_data, 
-                    path=['category', 'sub_category'],  # Hierarchical structure
-                    values='number_of_articles',            # Size based on Value1
+                    path=['category', 'sub_category'],
+                    values='number_of_articles',      
                     title='Categories and their sub-categories')
     
     # Return the figure so adjustments can be made inside of the notebook for experimentation.
