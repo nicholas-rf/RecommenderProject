@@ -1,4 +1,4 @@
-import ExploratoryAnalysis.visualization_modules as visualization_modules
+
 import pandas as pd
 import numpy as np
 
@@ -52,7 +52,6 @@ def check_data_types(dataframe):
 
     return pd.DataFrame(data=dataframe.dtype.tolist(), columns=dataframe.columns)
 
-
 def clean_impression(impression : str = 'N55689-1') -> dict:
     """ 
     Cleans up a user impression for its characteristics.
@@ -70,7 +69,7 @@ def clean_impression(impression : str = 'N55689-1') -> dict:
     # Return a dictionary with the articleID and the click indicator
     return {'score':impression_info[1], 'article_ID':impression_info[0]}  
 
-def create_popularity_dfs(news_frame : pd.DataFrame, behaviors_frame : pd.DataFrame) -> (pd.DataFrame, pd.DataFrame):
+def create_popularity_dfs(news_frame : pd.DataFrame, behaviors_frame : pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """ 
     Creates dataframes to get the popularity of categories and articles through a users history and clickthrough rates.
     This is accomplished by iterating through the users in the behaviors dataframe, and incrementing dictionaries of articles and categories
