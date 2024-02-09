@@ -5,6 +5,54 @@ import numpy as np
 """
 Data processing is done in this module in order to avoid slowdown from hardware constraints in the eda_report.
 """
+
+
+def data_to_csv(behaviors : bool, fpath : str = '../MIND_small/tsv/behaviors.tsv') -> None:
+    """
+    Takes a tab seperated variable file from the MIND dataset, adds columns to it, and exports it as a CSV.
+
+    Args:
+        behaviors (bool) : A boolean which signifies that the incomming tsv is either the behaviors tsv or the news tsv.
+        fpath (str) : The path to the directory that the csv will be output to.
+
+    Returns:
+        None
+    """
+    
+    # If we are changing the format of the behaviors tsv, then use that one.
+    if behaviors:
+
+        # Column names to be added.
+        behaviors_columns = ['impression_id', 'user_id', 'time', 'history', 'impressions']
+
+        # Read in the tsv adding names and then export it to a csv.
+        df = pd.read_csv(fpath, sep='\t', names=behaviors_columns)
+        df.to_csv('MIND_small/csv/behaviors.csv')
+
+    # If we are are not changing the format of the behaviors tsv, use the news csv.
+    else:
+
+        # Column names to be added.
+        news_columns = ['news_id', 'category', 'sub_category', 'title', 'abstract', 'url', 'title_entities', 'abstract_entities']
+
+        # Read in the tsv adding names and then export it to a csv.
+        df = pd.read_csv(fpath, sep='\t', names=news_columns)
+        df.to_csv('MIND_small/csv/news.csv')
+
+def check_data_types(dataframe):
+    """
+    Prints out data types of a pandas dataframe in a clean way for the EDA notebook.
+    
+    Args:
+        dataframe (pd.DataFrame) : A dataframe to extract variable types from.
+
+    Returns:
+        datatypes (pd.DataFrame) : A dataframe containing datatypes as a row and fetures as columns.
+    """
+
+    return pd.DataFrame(data=dataframe.dtype.tolist(), columns=dataframe.columns)
+
+
 def clean_impression(impression : str = 'N55689-1') -> dict:
     """ 
     Cleans up a user impression for its characteristics.
