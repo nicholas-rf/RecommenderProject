@@ -202,12 +202,12 @@ def decompose_interactions(num_iterations : int, news : pd.DataFrame, behaviors 
     
     Args:
         num_iterations (int) : The number of rows in the resulting dataframe.
-
+        news (pd.DataFrame) : The dataframe containing the data from the news csv.
+        behaviors (pd.DataFrame) : The dataframe containing the data from the behaviors csv.
+    
     Returns:
         results (pd.DataFrame) : The dataframe containing users and their rankings. The columns of the dataframe are
         user_id, article_id, rating, rating_type, category, sub_category, timestamp. 
-    impression_id,user_id,time,history,impressions
-    news_id,category,sub_category,title,abstract,url,title_entities,abstract_entities
     """
     data = {'user_id' : [], 'time' : [], 'news_id' : [], 'category' : [], 'sub_category' : [], 'title' : [], 'abstract' : [], 'interaction_type' : [], 'score' : []}
 
@@ -215,7 +215,7 @@ def decompose_interactions(num_iterations : int, news : pd.DataFrame, behaviors 
     news.set_index('news_id', inplace=True)
 
     # Creating an update_data function to better manage boilerplate.
-    def update_data(data : dict, user_id : str, time_stamp : str, news_id : str, interaction_type : str, impression_score : int) -> dict:
+    def update_data(data : dict, user_id : str, time_stamp : str, news_id : str, interaction_type : str, score : int) -> dict:
         """
         Updates the data dictionary with a users interaciton data.
         """
@@ -228,14 +228,14 @@ def decompose_interactions(num_iterations : int, news : pd.DataFrame, behaviors 
         data['title'].append(news.loc[news_id]['title'])
         data['abstract'].append(news.loc[news_id]['abstract'])
         data['interaction_type'].append(interaction_type)
-        data['impression_score'].append(impression_score)
+        data['score'].append(score)
         return data
 
     # Initializing a counter so that the number of new rows can be controlled for easier testing and processing.
     counter = 0
 
     # Iterating through all relevant information.
-    for user_id, history, impressions, time_stamp in zip(behaviors['user_id'], behaviors['history'], behaviors['impressions'], behaviors['history']):
+    for user_id, history, impressions, time_stamp in zip(behaviors['user_id'], behaviors['history'], behaviors['impressions'], behaviors['time']):
         if counter > num_iterations:
             break
 
