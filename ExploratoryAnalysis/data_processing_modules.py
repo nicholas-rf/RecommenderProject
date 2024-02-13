@@ -193,3 +193,60 @@ def modify_time():
     Modifies the time of the behaviors dataframe so that temporal analysis of popularity can occur. Can consider for collaborative
     filtering looking at users that are also interacting at a similar time  
     """
+
+
+def decompose_interactions(num_iterations : int, news : pd.DataFrame, behaviors : pd.DataFrame) -> pd.DataFrame:
+    """
+    Iterates through user interactions to create a tensorflow compatible dataset comprised of multiple rows per user, each row detailing
+    their interaction, and relevant information about that interaction.
+    
+    Args:
+        num_iterations (int) : The number of rows in the resulting dataframe.
+
+    Returns:
+        results (pd.DataFrame) : The dataframe containing users and their rankings. The columns of the dataframe are
+        user_id, article_id, rating, rating_type, category, sub_category, timestamp. 
+    impression_id,user_id,time,history,impressions
+    news_id,category,sub_category,title,abstract,url,title_entities,abstract_entities
+    """
+    data = {'user_id' : [], 'time' : [], 'news_id' : [], 'category' : [], 'sub_category' : [], 'title' : [], 'abstract' : [], 'interaction_type' : []}
+
+    # Setting the index of news to news_id so that lookup for information can be done.
+    news.set_index('news_id', inplace=True)
+
+    # Creating an update_data function to better manage boilerplate.
+    def update_data(data : dict, user_id : str, time_stamp : str, news_id : str, interaction_type : str) -> dict:
+        """
+        Updates the data dictionary with a users interaciton data.
+        """
+        # Updating all relevant keys in the dictionary
+        data['user_id'].append(user_id)
+        data['time'].append(time_stamp)
+        data['news_id'].append(news_id)
+        data['category'].append(news.loc[news_id]['category'])
+        data['sub_category'].append(news.loc[news_id]['sub_category'])
+        data['title'].append(news.loc[news_id]['title'])
+        data['abstract'].append(news.loc[news_id]['abstract'])
+        data['interaction_type'].append(interaction_type)
+        return data
+
+    # Initializing a counter so that the number of new rows can be controlled for easier testing and processing.
+    counter = 0
+
+    # Iterating through all relevant information.
+    for user_id, history, impressions, time_stamp in zip(behaviors['user_id'], behaviors['history'], behaviors['impressions'], behaviors['history']):
+        if counter > num_iterations:
+            break
+
+        # Iterating through all news ids in the history and impressions.
+        for news_id in history.split():
+            data = update_data(data, user_id, time_stamp, news_id, 'history')
+            counter += 1
+        for impression in impressions.split():
+            impression_result = clean_impression(impression)
+            if impression_result['score'] == 1:
+                data = update_data(data, user_id, time_stamp, impression_result['article_ID'], 'impression')   
+                counter += 1
+
+    # Returning a dataframe with the dictionary as its input.
+    return pd.DataFrame(data=data)
