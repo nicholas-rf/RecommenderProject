@@ -209,13 +209,13 @@ def decompose_interactions(num_iterations : int, news : pd.DataFrame, behaviors 
     impression_id,user_id,time,history,impressions
     news_id,category,sub_category,title,abstract,url,title_entities,abstract_entities
     """
-    data = {'user_id' : [], 'time' : [], 'news_id' : [], 'category' : [], 'sub_category' : [], 'title' : [], 'abstract' : [], 'interaction_type' : []}
+    data = {'user_id' : [], 'time' : [], 'news_id' : [], 'category' : [], 'sub_category' : [], 'title' : [], 'abstract' : [], 'interaction_type' : [], 'score' : []}
 
     # Setting the index of news to news_id so that lookup for information can be done.
     news.set_index('news_id', inplace=True)
 
     # Creating an update_data function to better manage boilerplate.
-    def update_data(data : dict, user_id : str, time_stamp : str, news_id : str, interaction_type : str) -> dict:
+    def update_data(data : dict, user_id : str, time_stamp : str, news_id : str, interaction_type : str, impression_score : int) -> dict:
         """
         Updates the data dictionary with a users interaciton data.
         """
@@ -228,6 +228,7 @@ def decompose_interactions(num_iterations : int, news : pd.DataFrame, behaviors 
         data['title'].append(news.loc[news_id]['title'])
         data['abstract'].append(news.loc[news_id]['abstract'])
         data['interaction_type'].append(interaction_type)
+        data['impression_score'].append(impression_score)
         return data
 
     # Initializing a counter so that the number of new rows can be controlled for easier testing and processing.
@@ -240,13 +241,16 @@ def decompose_interactions(num_iterations : int, news : pd.DataFrame, behaviors 
 
         # Iterating through all news ids in the history and impressions.
         for news_id in history.split():
-            data = update_data(data, user_id, time_stamp, news_id, 'history')
+            data = update_data(data, user_id, time_stamp, news_id, 'history', 1)
             counter += 1
         for impression in impressions.split():
             impression_result = clean_impression(impression)
             if impression_result['score'] == 1:
-                data = update_data(data, user_id, time_stamp, impression_result['article_ID'], 'impression')   
+                data = update_data(data, user_id, time_stamp, impression_result['article_ID'], 'impression', 1)   
                 counter += 1
+            else:
+                data = update_data(data, user_id, time_stamp, impression_result['article_ID'], 'impression', 0)   
 
     # Returning a dataframe with the dictionary as its input.
     return pd.DataFrame(data=data)
+
