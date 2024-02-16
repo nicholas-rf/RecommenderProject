@@ -1,4 +1,6 @@
-
+from transformers import BertTokenizer, TFBertModel
+import keras.api._v2.keras
+import tensorflow as tf
 import pandas as pd
 import numpy as np
 
@@ -254,3 +256,91 @@ def decompose_interactions(num_iterations : int, news : pd.DataFrame, behaviors 
     # Returning a dataframe with the dictionary as its input.
     return pd.DataFrame(data=data)
 
+def create_text_embeddings(dataset):
+    """
+    Applies pre-trained BERT embeddings to the feature columns with text data for use within clustering methods.
+
+    Args:
+        dataset (pd.DataFrame) : Dataset containing user interactions.
+
+    Returns:
+        dataset (pd.DataFrame) : A dataset with embeddings columns.
+    """
+    # Initialize the bert tokenizer and model from bert base cased.
+    tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
+    model = TFBertModel.from_pretrained('bert-base-cased')
+
+    # Create a dense layer with the embedding dimension to process embeddings.
+    embedding_dimension = 8
+    dense_layer = keras.layers.Dense(embedding_dimension, activation='linear')
+
+    # Define a function to get the embeddings from the models and apply them to the text.
+    def get_embeddings(text_1):
+        """
+        Gets embeddings from pre trained bert model for news information used for clustering.
+        """
+        try:
+            if type(text_1) == float:
+                return [0]
+
+            # Apply the tokenizer to the text and return it in the tensorflow tensor format. 
+            encoded_text = tokenizer(text_1, return_tensors='tf')
+
+            # Get the output from BERT model with the encoded text.
+            bert_output = model(encoded_text)
+
+            # Use the pooled output for a single vector representation of the input. 
+            pooled_output = bert_output.pooler_output
+
+            # Apply dense layer to project to desired size.
+            embedding_vector = list(dense_layer(pooled_output).numpy())
+            return embedding_vector
+        except:
+            print(text_1)
+
+    # Apply the embeddings to the abstract and title columns.
+    # abstracts = dataset['abstract'].to_list()
+    # text = get_embeddings(abstracts[0])
+            
+    ## NEED TO INCLUDE TRUNCATING / COLLATING / SOMETHING LIKE THAT FOR THIS MODEL AS THERE ARE ABSTRACTS LARGER THAN INPUT LENGTH
+            # doesnt tokenzier do that?
+            # example text that doesnt work From Tiger Woods' historic win in Japan to a major shake-up at CBS Sports, here is what you missed from golf this weekend.
+            # Real talk. Demi Moore got candid about a variety of topics in her new book, Inside Out, including her famous exes, substance abuse struggles and her heartbreaking sexual assault. "The same question kept going through my head: How did I get here?" the 56-year-old actress began in the memoir, which was released on Tuesday, September 24. "The husband who I'd thought was the love of my life had cheated on me and then decided he didn't want to work on our marriage. My children weren't speaking me. … Is this life? I wondered. Because if this is it, I'm done." Moore provided insight into all three of her marriages in the book. She was married to Freddy Moore from 1980 to 1985, Bruce Willis from 1987 to 2000 and Ashton Kutcher from 2005 to 2013. The end of the G.I. Jane star's relationship with the former That 70's Show star, however, seemed to have the biggest impact on her. "I lost me," the Ghost actress told Diane Sawyer on Good Morning America on Monday, September 23, about their split. "I think the thing if I were to look back, I would say I blinded myself and I lost myself." Moore and Kutcher, who is 15 years her junior, started dating in 2003. After Us Weekly broke the news that he was allegedly unfaithful in 2011, the twosome called it quits. The Ranch star married Mila Kunis in July 2015. They share two kids: Wyatt, 4, and Dimitri, 2. Kutcher, for his part, reflected on the divorce during an appearance on Dax Shepard's "Armchair Expert" podcast last year. "Right after I got divorced, I went to the mountains for a week by myself," Kutcher told Shepard in February 2018. "I did no food, no drink   just water and tea. I took all my computers away, my phone, my everything. I was there by myself, so there was no talking. I just had a notepad, a pen and water and tea   for a week." He referred to the trip as "really spiritual and kind of awesome." "I wrote down every single relationship that I had where I felt like there was some grudge or some anything, regret, anything," Kutcher explained. "And I wrote letters to every single person, and on day seven, I typed them all out and then sent them." While Moore certainly doesn't hold back in Inside Out, a source told Us earlier this month that the Kutcher isn't worried about the book. "Ashton knew what was coming. He had a heads up on what is in the book," the insider said on September 13. "He's not mad or disappointed. This is Demi's truth, and he always felt sympathetic toward her. He knows her story and that her upbringing was difficult." Inside Out is available now. Scroll through for 10 revelations from the book:
+    # print(text)
+    dataset['abstract_embeddings'] = dataset['abstract'].apply(get_embeddings)
+    dataset['title_embeddings'] = dataset['title'].apply(get_embeddings)
+    return dataset
+
+def create_connection():
+    """
+    Creates a connection to the database by taking in a user password.
+    """
+    database_name = 'user_info'
+    connection_user = 'admin'
+    try:
+        connection_password = input("Enter Password: ")
+        connection_host = 'svc-57117697-8d22-448b-8b96-d3b2a46d0970-dml.aws-virginia-6.svc.singlestore.com'
+        connection_port = '3306'
+        connection_url = f"mysql+pymysql://{connection_user}:{connection_password}@{connection_host}:{connection_port}/{database_name}"
+        db_connection = create_engine(connection_url)
+        return db_connection
+    except Exception as e:
+        print(f"Exception {e} occured, try again.\n")
+        return create_connection()
+
+
+def push_to_DB(news : pd.DataFrame, behaviors : pd.DataFrame) -> None:
+    """ 
+    Pushes data to the SingleStore database for usage in modelling within docker containers and virtual machines.
+
+    Args:
+        news (pd.DataFrame) : The dataframe containing the data from the news csv.
+        behaviors (pd.DataFrame) : The dataframe containing the data from the behaviors csv.
+
+    Returns:
+        None.
+    """
+    db_connection = create_connection()
+    user_interaction_data = decompose_interactions(num_iterations=100000, news=news, behaviors=behaviors)
+    user_interaction_data.to_sql('user_behaviors', if_exists='replace', con=db_connection, index=False)
+    print("Push to Database Successful")
