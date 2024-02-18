@@ -3,7 +3,7 @@ import keras.api._v2.keras
 import tensorflow as tf
 import pandas as pd
 import numpy as np
-
+from sqlalchemy import create_engine
 """
 Data processing is done in this module in order to avoid slowdown from hardware constraints in the eda_report.
 """
@@ -293,8 +293,9 @@ def create_text_embeddings(dataset):
             pooled_output = bert_output.pooler_output
 
             # Apply dense layer to project to desired size.
-            embedding_vector = list(dense_layer(pooled_output).numpy())
-            return embedding_vector
+            # embedding_vector = list(dense_layer(pooled_output).numpy())
+            # return embedding_vector
+            return pooled_output.numpy().tolist()
         except:
             print(text_1)
 
