@@ -105,6 +105,37 @@ def plot_category_popularity(category_popularity : pd.DataFrame) -> None:
 
     plt.show()
 
+def create_temporal_graphs(behaviors_with_counts : pd.DataFrame) -> None:
+    """ 
+    Creates graphs showcasing popularity of certain categories for different times of day with a seaborn facet grid.
+
+    Args:
+        behaviors_with_counts (pd.DataFrame) : A dataframe that is created as a result of loading in behaviors_with_individual_counts.csv. Which gets created via the usage of create_popularity_csvs in data_processing_modules.py.
+
+    Returns:
+        None 
+    """
+
+    cols = ['lifestyle', 'health', 'news', 'sports', 'weather', 'entertainment', 'autos', 'travel', 'foodanddrink', 'tv', 'finance', 'movies', 'video', 'music', 'kids', 'middleeast', 'northamerica']
+    impression_ = []
+    history_ = []
+    for col in cols:
+        impression_.append(col + '_impression')
+        history_.append(col + '_history')
+
+    behaviors_long = behaviors_final.melt(id_vars='hour', value_vars= history_ + impression_)
+    behaviors_long['type'] = behaviors_long['variable'].apply(lambda x : x.split('_')[1])
+    behaviors_long['variable'] = behaviors_long['variable'].apply(lambda x : x.split('_')[0])
+
+    g = sns.FacetGrid(behaviors_long, col='type', sharey=False, hue='variable', height=5, aspect=1)
+
+    g.map(sns.lineplot, 'hour', 'value')
+    g.set_axis_labels(y_var='Popularity', x_var='Time of day')
+    g.add_legend(title='Categories')
+    g.set_titles('User {col_name}')
+    plt.show()
+
+
 def check_genre_popularity():
     """
     
