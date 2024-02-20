@@ -256,12 +256,12 @@ def decompose_interactions(num_iterations : int, news : pd.DataFrame, behaviors 
     # Returning a dataframe with the dictionary as its input.
     return pd.DataFrame(data=data)
 
-def create_text_embeddings(dataset):
+def create_text_embeddings(news):
     """
     Applies pre-trained BERT embeddings to the feature columns with text data for use within clustering methods.
 
     Args:
-        dataset (pd.DataFrame) : Dataset containing user interactions.
+        news (pd.DataFrame) : News dataset containing the articles with different abstracts and title for embedding collection.
 
     Returns:
         dataset (pd.DataFrame) : A dataset with embeddings columns.
@@ -308,9 +308,9 @@ def create_text_embeddings(dataset):
             # example text that doesnt work From Tiger Woods' historic win in Japan to a major shake-up at CBS Sports, here is what you missed from golf this weekend.
             # Real talk. Demi Moore got candid about a variety of topics in her new book, Inside Out, including her famous exes, substance abuse struggles and her heartbreaking sexual assault. "The same question kept going through my head: How did I get here?" the 56-year-old actress began in the memoir, which was released on Tuesday, September 24. "The husband who I'd thought was the love of my life had cheated on me and then decided he didn't want to work on our marriage. My children weren't speaking me. … Is this life? I wondered. Because if this is it, I'm done." Moore provided insight into all three of her marriages in the book. She was married to Freddy Moore from 1980 to 1985, Bruce Willis from 1987 to 2000 and Ashton Kutcher from 2005 to 2013. The end of the G.I. Jane star's relationship with the former That 70's Show star, however, seemed to have the biggest impact on her. "I lost me," the Ghost actress told Diane Sawyer on Good Morning America on Monday, September 23, about their split. "I think the thing if I were to look back, I would say I blinded myself and I lost myself." Moore and Kutcher, who is 15 years her junior, started dating in 2003. After Us Weekly broke the news that he was allegedly unfaithful in 2011, the twosome called it quits. The Ranch star married Mila Kunis in July 2015. They share two kids: Wyatt, 4, and Dimitri, 2. Kutcher, for his part, reflected on the divorce during an appearance on Dax Shepard's "Armchair Expert" podcast last year. "Right after I got divorced, I went to the mountains for a week by myself," Kutcher told Shepard in February 2018. "I did no food, no drink   just water and tea. I took all my computers away, my phone, my everything. I was there by myself, so there was no talking. I just had a notepad, a pen and water and tea   for a week." He referred to the trip as "really spiritual and kind of awesome." "I wrote down every single relationship that I had where I felt like there was some grudge or some anything, regret, anything," Kutcher explained. "And I wrote letters to every single person, and on day seven, I typed them all out and then sent them." While Moore certainly doesn't hold back in Inside Out, a source told Us earlier this month that the Kutcher isn't worried about the book. "Ashton knew what was coming. He had a heads up on what is in the book," the insider said on September 13. "He's not mad or disappointed. This is Demi's truth, and he always felt sympathetic toward her. He knows her story and that her upbringing was difficult." Inside Out is available now. Scroll through for 10 revelations from the book:
     # print(text)
-    dataset['abstract_embeddings'] = dataset['abstract'].apply(get_embeddings)
-    dataset['title_embeddings'] = dataset['title'].apply(get_embeddings)
-    return dataset
+    news['abstract_embeddings'] = news['abstract'].apply(get_embeddings)
+    news['title_embeddings'] = news['title'].apply(get_embeddings)
+    return news
 
 def create_connection():
     """
@@ -329,7 +329,6 @@ def create_connection():
         print(f"Exception {e} occured, try again.\n")
         return create_connection()
 
-
 def push_to_DB(news : pd.DataFrame, behaviors : pd.DataFrame) -> None:
     """ 
     Pushes data to the SingleStore database for usage in modelling within docker containers and virtual machines.
@@ -345,3 +344,128 @@ def push_to_DB(news : pd.DataFrame, behaviors : pd.DataFrame) -> None:
     user_interaction_data = decompose_interactions(num_iterations=100000, news=news, behaviors=behaviors)
     user_interaction_data.to_sql('user_behaviors', if_exists='replace', con=db_connection, index=False)
     print("Push to Database Successful")
+
+def create_interaction_counts():
+    """
+    Creates interaction counts dataframes for usage in timestamp analysis.
+    """
+    
+    news = pd.read_csv('../MIND_small/csv/news.csv')
+    copynews = news.set_index('news_id')
+    behaviors = pd.read_csv('../MIND_small/csv/behaviors.csv')
+    category_popularity = pd.read_csv('../MIND_small/csv/category_with_popularity.csv')
+    category_popularity.drop(columns=['Unnamed: 0'], inplace=True)
+
+    def get_interaction_popularity(row, history=True):
+        """
+        Gets category popularity counts for a given interaction.
+
+        Args:
+            row (pd.DataFrame) : A row containing information.
+            copynews (pd.DataFrame) : The news dataset with the index set to news ID. Used for lookup of article category.
+            history (boolean) : A boolean that signifies whether or not the history column should be used.
+
+        Returns:
+            category_popularity (dict) : A dictionary containing popularity counts for a given user impression.
+        """
+
+        # Create dictionaries to store interacted categories for each user by history and their clickthrough rates.
+        category_popularity_impression = {category: 0 for category in pd.unique(copynews['category'])}
+        category_popularity_history = {category: 0 for category in pd.unique(copynews['category'])}
+
+        # Get the history and impressions of the user in the row.
+        if history:
+            history=row['history']
+            # If our history is not a NaN.
+            if type(history) != float:
+
+                # Split the history into news IDs
+                for news_id in history.split():
+
+                    # Locate the article and access its category, then increment the metrics.
+                    category = copynews.loc[news_id]['category']
+                    category_popularity_history[category] += 1
+        else:
+            impressions=row['impressions']
+            # If the impression is not a NaN.
+            if type(impressions) != float:
+                # Access all impressions.
+                for impression in impressions.split():
+
+                    # Clean up the impression so that it's easier to parse.
+                    impression_info = clean_impression(impression)
+
+                    # If the impression signifies a clickthrough increment the metrics.
+                    if impression_info['score'] == '1':
+                        category = copynews.loc[impression_info['article_ID']]['category']
+                        category_popularity_impression[category] += 1
+
+        return category_popularity_history if history else category_popularity_impression
+
+    # print(pd.unique(copynews['category']))
+    behaviors[category_popularity.columns.to_list()] = behaviors.apply(lambda row : get_interaction_popularity(row, True), axis='columns', result_type='expand')
+    behaviors.rename(columns={column : column + "_history" for column in category_popularity.columns.to_list()}, inplace=True)
+    behaviors[category_popularity.columns.to_list()] = behaviors.apply(lambda row : get_interaction_popularity(row, False), axis='columns', result_type='expand')
+    behaviors.rename(columns={column : column + "_impression" for column in category_popularity.columns.to_list()}, inplace=True)
+    behaviors.to_csv("../MIND_small/csv/behaviors_with_individual_counts.csv")
+
+def modify_hourly(behaviors):
+    """
+    Bins the time column of behaviors into hours so that insights on how time of day affects category popularity can be examined.
+    
+    Args:
+        behaviors (pd.DataFrame) : Behaviors dataframe with impression specific category popularity counts.
+
+    Returns:
+        behaviors (pd.DataFrame) : Behaviors dataframe modified to include a binned time column. 
+    """
+    # Can be printed to determine the minimum and maximum timeframe for the data.
+    times = [behaviors['time'].max(), behaviors['time'].min()]
+
+    # going to want to set it so that time is only representing the date of the week and not hours, so cut_points can join the date with 00:00:00 for hourly predictions
+    
+    cut_points = pd.date_range(start='2019-11-09 00:00:00', end='2019-11-15 00:00:00', freq='h') # hourly ranges for the time of the behaviors dataset
+    # going to want to adjust cutpoints so that we are specifically thinking of hours from 1 - 24 with 24 being midnight (0)
+    
+    # Create labels for the bins.
+    bins_str = cut_points.astype(str).values
+    labels = ['({}, {}]'.format(bins_str[i-1], bins_str[i]) for i in range(1, len(bins_str))]
+    
+    # Apply the bins to the time column.
+    behaviors['hour'] = pd.cut(behaviors['time'], cut_points, labels=labels, include_lowest=True)
+    
+    # Modify the times so that it is only hours.
+    behaviors['hour'] = behaviors['hour'].apply(lambda time_string : time_string.split(" ")[-1][:2])
+    behaviors = behaviors.drop(columns=['Unnamed: 0','Unnamed: 0.1', 'impression_id', 'user_id', 'history', 'impressions', 'time'])
+    return behaviors
+
+def simple_string_to_list(input_str):
+    """Reformats separate list of embeddings so it is compatible for expansion"""    
+    processed_string = input_str.replace("[[", "[").replace("]]", "]").replace('\n', '').replace(', dtype=float32)]', '')
+    array = list(eval(processed_string))
+    return array
+
+def preprocess_BERT_embeddings(news : pd.DataFrame, small : bool) -> None:
+    """
+    Prepares and applies BERT embeddings to the dataset for usage within clustering.  
+    """
+    # news = create_text_embeddings(news)
+    if small:
+        fpath = '../MIND_small'
+    else:
+        fpath = '../MIND_large'
+
+    # news.to_csv(fpath + '/csv/news_BERT_embeddings.csv')
+    # del news
+    print('starting')
+    embedded_news = pd.read_csv(fpath + '/csv/news_big_embeddings.csv', index_col = 0).drop(columns=['abstract_entities', 'title_entities', 'url'])
+    embedded_news = embedded_news[embedded_news['abstract_embeddings'] != '[0]']
+    embedded_news = embedded_news[embedded_news['abstract_embeddings'].isna() == False]
+    embedded_news['abstract_embeddings'] = embedded_news['abstract_embeddings'].apply(lambda x : simple_string_to_list(x))
+    embedded_news['title_embeddings'] = embedded_news['title_embeddings'].apply(lambda x : simple_string_to_list(x))
+    abstracts = pd.DataFrame(embedded_news['abstract_embeddings'].to_list(), index=embedded_news.index)
+    titles = pd.DataFrame(embedded_news['title_embeddings'].to_list(), index=embedded_news.index)
+    titles.columns = ['{}_title'.format(title) for title in titles.columns]
+    abstracts.columns = ['{}_abstract'.format(title) for title in abstracts.columns]
+    embedded_news = pd.concat([embedded_news, titles, abstracts], axis=1).drop(columns=['abstract_embeddings','title_embeddings', 'title', 'abstract'])
+    embedded_news.to_csv(fpath + '/csv/news_BERT_extracted_embeddings.csv')

@@ -56,29 +56,7 @@ def plot_sub_categories(news : pd.DataFrame) -> go.Figure:
                     title='Categories and their sub-categories')
     
     # Return the figure so adjustments can be made inside of the notebook for experimentation.
-    return fig
-    
-def missing_news_analysis(news : pd.DataFrame):
-    """
-    Creates a chart for missing values in the news dataset to determine missingness.
-
-    Args:
-        news (pd.DataFrame) : The news dataset to examine missing values from.
-
-    Returns:
-        fig (some figure type) : something
-    """
-    missing_vals = news.isna()
-    missing_vals['abstract'] # can utilize this as a mask to get values where missing abstract is true in the main, to see if theres a
-    # majority of missing abstracts for a specific category 
-
-
-### behaviors dataset methods ###
-    
-    ## important things to do
-    ## plot distributions of time and interactions to gauge popular interaction times
-    ## analyze the average clickthrough rates of articles per genre (ie total reccommendations given and clickthrough rates ) 
-           
+    return fig  
 
 def plot_category_popularity(category_popularity : pd.DataFrame) -> None:
     """
@@ -110,7 +88,7 @@ def create_temporal_graphs(behaviors_with_counts : pd.DataFrame) -> None:
     Creates graphs showcasing popularity of certain categories for different times of day with a seaborn facet grid.
 
     Args:
-        behaviors_with_counts (pd.DataFrame) : A dataframe that is created as a result of loading in behaviors_with_individual_counts.csv. Which gets created via the usage of create_popularity_csvs in data_processing_modules.py.
+        behaviors_with_counts (pd.DataFrame) : A dataframe containing the hourly counts of popularity.
 
     Returns:
         None 
@@ -123,7 +101,7 @@ def create_temporal_graphs(behaviors_with_counts : pd.DataFrame) -> None:
         impression_.append(col + '_impression')
         history_.append(col + '_history')
 
-    behaviors_long = behaviors_final.melt(id_vars='hour', value_vars= history_ + impression_)
+    behaviors_long = behaviors_with_counts.melt(id_vars='hour', value_vars= history_ + impression_)
     behaviors_long['type'] = behaviors_long['variable'].apply(lambda x : x.split('_')[1])
     behaviors_long['variable'] = behaviors_long['variable'].apply(lambda x : x.split('_')[0])
 
