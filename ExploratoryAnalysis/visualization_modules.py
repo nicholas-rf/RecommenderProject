@@ -83,7 +83,7 @@ def plot_category_popularity(category_popularity : pd.DataFrame) -> None:
 
     plt.show()
 
-def create_temporal_graphs(behaviors_with_counts : pd.DataFrame) -> None:
+def create_temporal_graphs(behaviors_with_counts : pd.DataFrame, history_counts) -> None:
     """ 
     Creates graphs showcasing popularity of certain categories for different times of day with a seaborn facet grid.
 
@@ -101,9 +101,14 @@ def create_temporal_graphs(behaviors_with_counts : pd.DataFrame) -> None:
         impression_.append(col + '_impression')
         history_.append(col + '_history')
 
-    behaviors_long = behaviors_with_counts.melt(id_vars='hour', value_vars= history_ + impression_)
+    behaviors_long = behaviors_with_counts.melt(id_vars='hour', value_vars=impression_)
+    history_long = history_counts.melt(id_vars='hour', value_vars=history_ )
     behaviors_long['type'] = behaviors_long['variable'].apply(lambda x : x.split('_')[1])
     behaviors_long['variable'] = behaviors_long['variable'].apply(lambda x : x.split('_')[0])
+    history_long['type'] = history_long['variable'].apply(lambda x : x.split('_')[1])
+    history_long['variable'] = history_long['variable'].apply(lambda x : x.split('_')[0])
+
+    behaviors_long = pd.concat([behaviors_long, history_long], axis=0)
 
     g = sns.FacetGrid(behaviors_long, col='type', sharey=False, hue='variable', height=5, aspect=1)
 
