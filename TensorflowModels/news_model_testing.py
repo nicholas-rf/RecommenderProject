@@ -90,10 +90,10 @@ class MindModel(tfrs.models.Model):
     # A small model to take in user and movie embeddings and predict ratings.
     # We can make this as complicated as we want as long as we output a scalar
     # as our prediction.
-    self.rating_model = tf.keras.Sequential([
-        tf.keras.layers.Dense(256, activation="relu"),
-        tf.keras.layers.Dense(128, activation="relu"),
-        tf.keras.layers.Dense(1),
+    self.rating_model = keras.Sequential([
+        keras.layers.Dense(256, activation="relu"),
+        keras.layers.Dense(128, activation="relu"),
+        keras.layers.Dense(1),
     ])
 
     # The tasks.

@@ -1,3 +1,16 @@
+# using as notes from now lmao
+
+uh oh! turns out history is not interaction specific but user specific, womp womp what do we have to change now
+eda stuff mainly and the tensor flow dataset creator, but within that we can just take the duplicate histories and remove them maybe?
+
+Fixes for the EDA processing function:
+
+The impression frames are fine but the history frames need to be made again, which can be fixed by maybe just subsetting the data so there are only unique rows for the users to make the history popularity with
+
+Fixes for the temporal function:
+
+I believe that the temporal function can be fixed by fixing the EDA function which is good
+
 # Whats new: Thursday Feb 8th
 
 ## Modelling:
