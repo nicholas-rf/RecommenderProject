@@ -212,9 +212,9 @@ def decompose_interactions(num_iterations : int, news : pd.DataFrame, behaviors 
         user_id, article_id, rating, rating_type, category, sub_category, timestamp. 
     """
     data = {'user_id' : [], 'time' : [], 'news_id' : [], 'category' : [], 'sub_category' : [], 'title' : [], 'abstract' : [], 'interaction_type' : [], 'score' : []}
-
+    print(news.columns)
     # Setting the index of news to news_id so that lookup for information can be done.
-    news.set_index('news_id', inplace=True)
+    copynews = news.set_index('news_id', inplace=True)
 
     # Creating an update_data function to better manage boilerplate.
     def update_data(data : dict, user_id : str, time_stamp : str, news_id : str, interaction_type : str, score : int) -> dict:
@@ -225,10 +225,10 @@ def decompose_interactions(num_iterations : int, news : pd.DataFrame, behaviors 
         data['user_id'].append(user_id)
         data['time'].append(time_stamp)
         data['news_id'].append(news_id)
-        data['category'].append(news.loc[news_id]['category'])
-        data['sub_category'].append(news.loc[news_id]['sub_category'])
-        data['title'].append(news.loc[news_id]['title'])
-        data['abstract'].append(news.loc[news_id]['abstract'])
+        data['category'].append(copynews.loc[news_id]['category'])
+        data['sub_category'].append(copynews.loc[news_id]['sub_category'])
+        data['title'].append(copynews.loc[news_id]['title'])
+        data['abstract'].append(copynews.loc[news_id]['abstract'])
         data['interaction_type'].append(interaction_type)
         data['score'].append(score)
         return data
