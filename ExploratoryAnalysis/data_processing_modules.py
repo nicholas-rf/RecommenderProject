@@ -98,21 +98,20 @@ def create_popularity_dfs(news_frame : pd.DataFrame, behaviors_frame : pd.DataFr
     article_popularity_history = {article: 0 for article in news_frame['news_id']}
     category_popularity_impression = {category: 0 for category in pd.unique(copynews['category'])}
     category_popularity_history = {category: 0 for category in pd.unique(copynews['category'])}
-
+    user_ids = []
     # Iterate through every row of the columns history and impressions in the dataframe.
-    for history, impressions in zip(behaviors_frame['history'], behaviors_frame['impressions']):
+    for user_id, history, impressions in zip(behaviors_frame['user_id'], behaviors_frame['history'], behaviors_frame['impressions']):
 
         # If our history is not a NaN.
         if type(history) != float:
-
-            # Split the history into news IDs
-            for news_id in history.split():
-
-                # Locate the article and access its category, then increment the metrics.
-                category = copynews.loc[news_id]['category']
-                category_popularity_history[category] += 1
-                article_popularity_history[news_id] += 1
-                
+            if user_id not in user_ids:
+                # Split the history into news IDs
+                for news_id in history.split():
+                    # Locate the article and access its category, then increment the metrics.
+                    category = copynews.loc[news_id]['category']
+                    category_popularity_history[category] += 1
+                    article_popularity_history[news_id] += 1
+                user_ids.append(user_id)
 
         # If our impression is not a NaN.
         if type(impressions) != float:
@@ -436,7 +435,6 @@ def modify_hourly(behaviors):
     
     # Modify the times so that it is only hours.
     behaviors['hour'] = behaviors['hour'].apply(lambda time_string : time_string.split(" ")[-1][:2])
-    behaviors = behaviors.drop(columns=['Unnamed: 0','Unnamed: 0.1', 'impression_id', 'user_id', 'history', 'impressions', 'time'])
     return behaviors
 
 def simple_string_to_list(input_str):
