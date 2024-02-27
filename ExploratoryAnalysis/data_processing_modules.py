@@ -29,7 +29,7 @@ def data_to_csv(behaviors : bool, fpath : str = '../MIND_small/tsv/behaviors.tsv
 
         # Read in the tsv adding names and then export it to a csv.
         df = pd.read_csv(fpath, sep='\t', names=behaviors_columns)
-        df.to_csv('../MIND_large/csv/behaviors.csv')
+        df.to_csv('MIND_small/csv/behaviors.csv')
 
     # If we are are not changing the format of the behaviors tsv, use the news csv.
     else:
@@ -39,7 +39,7 @@ def data_to_csv(behaviors : bool, fpath : str = '../MIND_small/tsv/behaviors.tsv
 
         # Read in the tsv adding names and then export it to a csv.
         df = pd.read_csv(fpath, sep='\t', names=news_columns)
-        df.to_csv('../MIND_large/csv/news.csv')
+        df.to_csv('MIND_small/csv/news.csv')
 
 def check_data_types(dataframe):
     """
@@ -212,11 +212,9 @@ def decompose_interactions(num_iterations : int, news : pd.DataFrame, behaviors 
     """
     data = {'user_id' : [], 'time' : [], 'news_id' : [], 'category' : [], 'sub_category' : [], 'title' : [], 'abstract' : [], 'interaction_type' : [], 'score' : []}
     print(news.columns)
-    print(type(news))
     # Setting the index of news to news_id so that lookup for information can be done.
-    copynews = news.copy()
-    copynews = copynews.set_index('news_id')
-    
+    copynews = news.set_index('news_id', inplace=True)
+
     # Creating an update_data function to better manage boilerplate.
     def update_data(data : dict, user_id : str, time_stamp : str, news_id : str, interaction_type : str, score : int) -> dict:
         """
@@ -351,10 +349,10 @@ def create_interaction_counts():
     Creates interaction counts dataframes for usage in timestamp analysis.
     """
     
-    news = pd.read_csv('../MIND_large/csv/news.csv')
+    news = pd.read_csv('../MIND_small/csv/news.csv')
     copynews = news.set_index('news_id')
-    behaviors = pd.read_csv('../MIND_large/csv/behaviors.csv')
-    category_popularity = pd.read_csv('../MIND_large/csv/category_with_popularity.csv')
+    behaviors = pd.read_csv('../MIND_small/csv/behaviors.csv')
+    category_popularity = pd.read_csv('../MIND_small/csv/category_with_popularity.csv')
     category_popularity.drop(columns=['Unnamed: 0'], inplace=True)
 
     def get_interaction_popularity(row, history=True):
@@ -403,15 +401,12 @@ def create_interaction_counts():
 
         return category_popularity_history if history else category_popularity_impression
 
-    print(pd.unique(copynews['category']))
-    print(category_popularity.columns.to_list())
-    print('starting history popularity')
-    behaviors[category_popularity.columns.to_list()[1:]] = behaviors.apply(lambda row : get_interaction_popularity(row, True), axis='columns', result_type='expand')
+    # print(pd.unique(copynews['category']))
+    behaviors[category_popularity.columns.to_list()] = behaviors.apply(lambda row : get_interaction_popularity(row, True), axis='columns', result_type='expand')
     behaviors.rename(columns={column : column + "_history" for column in category_popularity.columns.to_list()}, inplace=True)
-    print('starting impression popularity')
-    behaviors[category_popularity.columns.to_list()[1:]] = behaviors.apply(lambda row : get_interaction_popularity(row, False), axis='columns', result_type='expand')
+    behaviors[category_popularity.columns.to_list()] = behaviors.apply(lambda row : get_interaction_popularity(row, False), axis='columns', result_type='expand')
     behaviors.rename(columns={column : column + "_impression" for column in category_popularity.columns.to_list()}, inplace=True)
-    behaviors.to_csv("../MIND_large/csv/behaviors_with_individual_counts.csv")
+    behaviors.to_csv("../MIND_small/csv/behaviors_with_individual_counts.csv")
 
 def modify_hourly(behaviors):
     """
@@ -424,12 +419,11 @@ def modify_hourly(behaviors):
         behaviors (pd.DataFrame) : Behaviors dataframe modified to include a binned time column. 
     """
     # Can be printed to determine the minimum and maximum timeframe for the data.
-    # times = [behaviors['time'].max(), behaviors['time'].min()]
-    behaviors['time'] = pd.to_datetime(behaviors['time'])
+    times = [behaviors['time'].max(), behaviors['time'].min()]
 
     # going to want to set it so that time is only representing the date of the week and not hours, so cut_points can join the date with 00:00:00 for hourly predictions
     
-    cut_points = pd.date_range(start='2019-11-15 00:00:00', end='2019-11-16 00:00:00', freq='h') # hourly ranges for the time of the behaviors dataset
+    cut_points = pd.date_range(start='2019-11-09 00:00:00', end='2019-11-15 00:00:00', freq='h') # hourly ranges for the time of the behaviors dataset
     # going to want to adjust cutpoints so that we are specifically thinking of hours from 1 - 24 with 24 being midnight (0)
     
     # Create labels for the bins.
