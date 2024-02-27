@@ -1,3 +1,2 @@
-MIND_large/* filter=lfs diff=lfs merge=lfs -text
 MIND_large/** filter=lfs diff=lfs merge=lfs -text
 MIND_small/** filter=lfs diff=lfs merge=lfs -text
