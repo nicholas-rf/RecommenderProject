@@ -1,4 +1,3 @@
-MIND_large/
 MIND_small/csv/behaviors_with_individual_counts.csv
 MIND_small/csv/news_big_embeddings.csv
 pure_embeddings.csv
