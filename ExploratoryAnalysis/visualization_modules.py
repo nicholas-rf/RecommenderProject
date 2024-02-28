@@ -58,17 +58,18 @@ def plot_sub_categories(news : pd.DataFrame) -> go.Figure:
     # Return the figure so adjustments can be made inside of the notebook for experimentation.
     return fig  
 
-def plot_category_popularity(category_popularity : pd.DataFrame) -> None:
+def plot_category_popularity():
     """
     Plots category popularity for user impressions and history separately using an SNS FacetGrid.
     
     Args:
-        category_popularity (pd.DataFrame) : A pandas dataframe containing the popularity of each category within impressions and user history's.
+        None
     
     Returns:
         None
     """
     # Melt and then sort the data.
+    category_popularity = pd.read_csv('../MIND_large/csv/category_with_popularity.csv').drop(columns=['Unnamed: 0'])
     category_popularity_long = category_popularity.melt(id_vars='popularity_type', value_vars=category_popularity.columns, value_name='popularity')
     category_popularity_long_sorted = category_popularity_long.sort_values(by=['popularity_type', 'popularity'], ascending=[True, False])
     
@@ -83,7 +84,7 @@ def plot_category_popularity(category_popularity : pd.DataFrame) -> None:
 
     plt.show()
 
-def plot_category_popularity(article_popularity : pd.DataFrame) -> None:
+def plot_article_popularity():
     """
     Plots category popularity for the catalogue to determine if some articles have more ratings than others.
     
@@ -94,21 +95,12 @@ def plot_category_popularity(article_popularity : pd.DataFrame) -> None:
         None
     """
     # Melt and then sort the data.
-    article_popularity_long = article_popularity.melt(id_vars='news_id', value_vars=['popularity_impression', 'popularity_history'], value_name='popularity')
-    article_popularity_long_sorted = article_popularity_long.sort_values(by=['popularity'])
-
-    category_popularity_long = category_popularity.melt(id_vars='popularity_type', value_vars=category_popularity.columns, value_name='popularity')
-    category_popularity_long_sorted = category_popularity_long.sort_values(by=['popularity_type', 'popularity'], ascending=[True, False])
-    
-    # Create a seaborn FacetGrid for the visualization.
-    g = sns.FacetGrid(category_popularity_long_sorted, col='popularity_type', sharex=False, height=5, aspect=1, hue='variable')
-
-    # Apply a barplot to each facet and set the labels and titles.
-    g.map(sns.barplot, 'popularity','variable')
-    g.set_axis_labels(x_var="Count of interactions", y_var='Categories')
-    g.set_titles("User {col_name}")
-    g.add_legend(title='Categories')
-
+    article_popularity = pd.read_csv('../MIND_large/csv/news_with_popularity.csv', index_col=0)
+    article_popularity['total'] = article_popularity['popularity_impression'] + article_popularity['popularity_history']
+    article_popularity = article_popularity.sort_values(by='total', ascending=False).reset_index(drop=True)
+    g = sns.lineplot(data=article_popularity['total'])
+    plt.xlabel('Articles')
+    plt.ylabel('Count of interactions')
     plt.show()
 
 
