@@ -223,17 +223,17 @@ def decompose_interactions(news : pd.DataFrame, behaviors : pd.DataFrame) -> pd.
     for user_id, history, impressions, time_stamp in zip(behaviors['user_id'], behaviors['history'], behaviors['impressions'], behaviors['time']):
 
         # Iterating through all news ids in the history and impressions.
-        if user_id in seen:
+        if user_id not in seen:
             if type(history) != float:
                 for news_id in history.split():
                     data = update_data(data, user_id, time_stamp, news_id, 'history', 1)
-                    counter += 1
+
                 seen.append(user_id)
         for impression in impressions.split():
             impression_result = clean_impression(impression)
             if impression_result['score'] == 1:
                 data = update_data(data, user_id, time_stamp, impression_result['article_ID'], 'impression', 1)   
-                counter += 1
+
             else:
                 data = update_data(data, user_id, time_stamp, impression_result['article_ID'], 'impression', 0)   
 
