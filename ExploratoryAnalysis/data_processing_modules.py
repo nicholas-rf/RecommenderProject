@@ -41,19 +41,6 @@ def data_to_csv(behaviors : bool, fpath : str = '../MIND_small/tsv/behaviors.tsv
         df = pd.read_csv(fpath, sep='\t', names=news_columns)
         df.to_csv('../MIND_large/csv/news.csv')
 
-def check_data_types(dataframe):
-    """
-    Prints out data types of a pandas dataframe in a clean way for the EDA notebook.
-    
-    Args:
-        dataframe (pd.DataFrame) : A dataframe to extract variable types from.
-
-    Returns:
-        datatypes (pd.DataFrame) : A dataframe containing datatypes as a row and fetures as columns.
-    """
-
-    return pd.DataFrame(data=dataframe.dtype.tolist(), columns=dataframe.columns)
-
 def clean_impression(impression : str = 'N55689-1') -> dict:
     """ 
     Cleans up a user impression for its characteristics.
@@ -85,10 +72,6 @@ def create_popularity_dfs(news_frame : pd.DataFrame, behaviors_frame : pd.DataFr
         category_popularity (pd.DataFrame) : A dataframe with categories as columns and popularity as a row.
         article_popularity (pd.DataFrame) : A dataframe with articles as rows and popularity as a column.
     """
-    
-    # Done for getting last history of every user (can be used for popularity up to a time when training so keeping here)
-    # max_idcs = behaviors_frame.groupby('user_id')['time'].idxmax()
-    # max_behaviors = behaviors_frame.loc[max_idcs]
 
     # Create a copy of the news dataframe where the index is the news_id.
     copynews = news_frame.set_index('news_id')
@@ -99,6 +82,7 @@ def create_popularity_dfs(news_frame : pd.DataFrame, behaviors_frame : pd.DataFr
     category_popularity_impression = {category: 0 for category in pd.unique(copynews['category'])}
     category_popularity_history = {category: 0 for category in pd.unique(copynews['category'])}
     user_ids = []
+
     # Iterate through every row of the columns history and impressions in the dataframe.
     for user_id, history, impressions in zip(behaviors_frame['user_id'], behaviors_frame['history'], behaviors_frame['impressions']):
 
@@ -196,13 +180,12 @@ def modify_time():
     """
 
 
-def decompose_interactions(num_iterations : int, news : pd.DataFrame, behaviors : pd.DataFrame) -> pd.DataFrame:
+def decompose_interactions(news : pd.DataFrame, behaviors : pd.DataFrame) -> pd.DataFrame:
     """
     Iterates through user interactions to create a tensorflow compatible dataset comprised of multiple rows per user, each row detailing
     their interaction, and relevant information about that interaction.
     
     Args:
-        num_iterations (int) : The number of rows in the resulting dataframe.
         news (pd.DataFrame) : The dataframe containing the data from the news csv.
         behaviors (pd.DataFrame) : The dataframe containing the data from the behaviors csv.
     
@@ -235,17 +218,17 @@ def decompose_interactions(num_iterations : int, news : pd.DataFrame, behaviors 
         return data
 
     # Initializing a counter so that the number of new rows can be controlled for easier testing and processing.
-    counter = 0
-
+    seen = []
     # Iterating through all relevant information.
     for user_id, history, impressions, time_stamp in zip(behaviors['user_id'], behaviors['history'], behaviors['impressions'], behaviors['time']):
-        if counter > num_iterations:
-            break
 
         # Iterating through all news ids in the history and impressions.
-        for news_id in history.split():
-            data = update_data(data, user_id, time_stamp, news_id, 'history', 1)
-            counter += 1
+        if user_id in seen:
+            if type(history) != float:
+                for news_id in history.split():
+                    data = update_data(data, user_id, time_stamp, news_id, 'history', 1)
+                    counter += 1
+                seen.append(user_id)
         for impression in impressions.split():
             impression_result = clean_impression(impression)
             if impression_result['score'] == 1:
@@ -473,3 +456,25 @@ def preprocess_BERT_embeddings(news : pd.DataFrame, small : bool) -> None:
     abstracts.columns = ['{}_abstract'.format(title) for title in abstracts.columns]
     embedded_news = pd.concat([embedded_news, titles, abstracts], axis=1).drop(columns=['abstract_embeddings','title_embeddings', 'title', 'abstract'])
     embedded_news.to_csv(fpath + '/csv/news_BERT_extracted_embeddings.csv')
+
+def create_hourly_long():
+    behaviors = pd.read_csv('../MIND_large/csv/behaviors_with_individual_counts.csv')
+    news = pd.read_csv('../MIND_large/csv/news.csv')
+    unique_user_histories = behaviors.drop_duplicates(subset='user_id')[['user_id', 'time'] + [category + '_history' for category in news['category'].unique()]]
+    behaviors = behaviors.drop(columns=[category + '_history' for category in news['category'].unique()])
+    behaviors = modify_hourly(behaviors)
+    behaviors = behaviors.drop(columns=['Unnamed: 0.1', 'Unnamed: 0', 'impression_id', 'history', 'impressions'])   
+    unique_user_histories = modify_hourly(unique_user_histories)
+    behaviors2 = behaviors.groupby('hour').agg('sum').reset_index()
+    unique_user_histories2 = unique_user_histories.groupby('hour').agg('sum').reset_index()
+    cols = ['lifestyle', 'health', 'news', 'sports', 'weather', 'entertainment', 'autos', 'travel', 'foodanddrink', 'tv', 'finance', 'movies', 'video', 'music', 'kids', 'middleeast', 'northamerica']
+    impression_ = []
+    history_ = []
+    for col in cols:
+        impression_.append(col + '_impression')
+        history_.append(col + '_history')
+    unique_user_histories2['history_div'] = unique_user_histories2[history_].apply(lambda x : sum(x), axis=1)
+    behaviors2['impression_div'] = behaviors2[impression_].apply(lambda x : sum(x), axis=1)
+    unique_user_histories2[history_] = unique_user_histories2.apply(lambda x : x[history_] / x['history_div'], axis=1)
+    behaviors2[impression_] = behaviors2.apply(lambda x : x[impression_] / x['impression_div'], axis=1)
+    return behaviors2, unique_user_histories2
