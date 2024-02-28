@@ -83,6 +83,35 @@ def plot_category_popularity(category_popularity : pd.DataFrame) -> None:
 
     plt.show()
 
+def plot_category_popularity(article_popularity : pd.DataFrame) -> None:
+    """
+    Plots category popularity for the catalogue to determine if some articles have more ratings than others.
+    
+    Args:
+        article_popularity (pd.DataFrame) : A pandas dataframe containing the popularity of each category within impressions and user history's.
+    
+    Returns:
+        None
+    """
+    # Melt and then sort the data.
+    article_popularity_long = article_popularity.melt(id_vars='news_id', value_vars=['popularity_impression', 'popularity_history'], value_name='popularity')
+    article_popularity_long_sorted = article_popularity_long.sort_values(by=['popularity'])
+
+    category_popularity_long = category_popularity.melt(id_vars='popularity_type', value_vars=category_popularity.columns, value_name='popularity')
+    category_popularity_long_sorted = category_popularity_long.sort_values(by=['popularity_type', 'popularity'], ascending=[True, False])
+    
+    # Create a seaborn FacetGrid for the visualization.
+    g = sns.FacetGrid(category_popularity_long_sorted, col='popularity_type', sharex=False, height=5, aspect=1, hue='variable')
+
+    # Apply a barplot to each facet and set the labels and titles.
+    g.map(sns.barplot, 'popularity','variable')
+    g.set_axis_labels(x_var="Count of interactions", y_var='Categories')
+    g.set_titles("User {col_name}")
+    g.add_legend(title='Categories')
+
+    plt.show()
+
+
 def create_temporal_graphs(behaviors_with_counts : pd.DataFrame, history_counts) -> None:
     """ 
     Creates graphs showcasing popularity of certain categories for different times of day with a seaborn facet grid.
