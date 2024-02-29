@@ -1,3 +1,6 @@
+from datetime import datetime
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from transformers import BertTokenizer, TFBertModel
 import keras.api._v2.keras
 import tensorflow as tf
@@ -465,9 +468,9 @@ def create_hourly_long():
     behaviors = modify_hourly(behaviors)
     behaviors = behaviors.drop(columns=['Unnamed: 0.1', 'Unnamed: 0', 'impression_id', 'history', 'impressions'])   
     unique_user_histories = modify_hourly(unique_user_histories)
-    behaviors2 = behaviors.groupby('hour').agg('sum').reset_index()
-    unique_user_histories2 = unique_user_histories.groupby('hour').agg('sum').reset_index()
-    cols = ['lifestyle', 'health', 'news', 'sports', 'weather', 'entertainment', 'autos', 'travel', 'foodanddrink', 'tv', 'finance', 'movies', 'video', 'music', 'kids', 'middleeast', 'northamerica']
+    behaviors2 = behaviors.drop(columns=['time', 'user_id']).groupby('hour', observed=False).agg('sum').reset_index()
+    unique_user_histories2 = unique_user_histories.drop(columns=['time', 'user_id']).groupby('hour', observed=False).agg('sum').reset_index()
+    cols = ['lifestyle', 'health', 'news', 'sports', 'weather', 'entertainment', 'autos', 'travel', 'foodanddrink', 'tv', 'finance', 'movies', 'video', 'music', 'kids', 'middleeast']
     impression_ = []
     history_ = []
     for col in cols:
@@ -478,3 +481,198 @@ def create_hourly_long():
     unique_user_histories2[history_] = unique_user_histories2.apply(lambda x : x[history_] / x['history_div'], axis=1)
     behaviors2[impression_] = behaviors2.apply(lambda x : x[impression_] / x['impression_div'], axis=1)
     return behaviors2, unique_user_histories2
+
+from collections import Counter
+
+def create_user_taste_profile(df):    
+    """
+    Uses the tensorflow compatible dataset to create the user feature dataframe.
+
+    Args:
+        df (pd.DataFrame) : The tensorflow compatible dataset as a dataframe for modification.
+
+    Returns:
+        users (pd.DataFrame) : The user feature dataframe.
+    """
+    # Subset the dataframe for items where a user has a positive rating and then group by user ids applying a counter.
+    history = df[df['score'] == 1]
+    user_prof = history.groupby("user_id")['category'].apply(Counter).to_frame()
+
+    # Unstacks the new columns and then removes multi-indexing.
+    user = user_prof.unstack(level=1, fill_value=0)
+    user.columns = user.columns.droplevel(0)
+    user = user.reset_index()
+
+    # Fill NaN values with zero and return the user frame.
+    user = user.fillna(0) 
+    return user
+
+def convert_time(dates):
+    """
+    Modifies the list of datetime strings in a user row into datetime objects for use within feature extraction.
+
+    Args:
+        dates (list) : List of strings containing date and time of interaction.
+
+    Returns:
+        time_objs (list) : List of datetime objects corresponding to each date string in the list given.
+    """
+    # Initialize an empty list to store datetime objects.
+    time_objs = []
+
+    # Set up the regular expression to use in datetime.
+    time_regex = '%m/%d/%Y %I:%M:%S %p'
+
+    # For all dates in the users dates transform the date into a datetime object and add it to time_objs.
+    for date in dates:
+        time_objs.append(datetime.strptime(date,time_regex))
+
+    # Return time_objs.
+    return time_objs
+
+def create_times(df):
+    """
+    Creates a dataframe of users and a list of all their interaction time stamps as datetime objects. 
+
+    Args:
+        df (pd.DataFrame) : The tensorflow compatible dataset as a dataframe for modification.
+
+    Returns:
+        date_objs (pd.DataFrame) : Dataframe containing users and a list of datetime objects of their interaction time stamps.
+    """
+    
+    # Group by user id and apply a list to each users time columns.
+    date_strings = df.groupby("user_id")["time"].apply(list)
+    
+    # Apply the convert time function and return the resulting dataframe.
+    date_objs = date_strings.map(convert_time)
+    return date_objs
+
+def median_hour(dates):
+    """
+    Finds the median hour that users interacted with articles.
+
+    Args:
+        dates (list) : List of datetime objs.
+
+    returns:
+        (int) : The median hour of their interactions.
+    """
+    # Initialize an empty list to hold the hours of a users interactions.
+    hours = []
+
+    # Populate the list with hours
+    for date in dates:
+        hours.append(date.hour)
+    
+    # Return the median hour of their interactions.
+    return np.median(hours)
+
+def remove_dups_tf (df):
+    """
+    deprecated, tensorflow compatible dataset now contains no duplicates of histories
+    Could be utilized to check if duplicates still exist within the dataset
+    """
+    timeless = df.drop("time", axis=1)
+    dups = timeless[timeless.duplicated].index
+    new_df = df.drop(index=dups, inplace=True)
+    print(f"Removed {len(dups)} duplicates.")
+
+def apply_mean_scale (row):
+    """
+    Applies a mean scale to the user preferences.
+
+    Args:
+        row (pd.DataFrame) : A row from the user features matrix to apply scaling to.
+
+    Returns:
+        Returns the values in the row after having been scaled.
+    """
+    # Get the total of all values in the row
+    total = row.values.sum()
+
+    # Initialize and then populate a list of all values after having been scaled.
+    new_values = []
+    for value in row:
+        value = value / total
+        new_values.append(value)
+
+    # Return the values as a series
+    return pd.Series(new_values)
+        
+def scaling_data(df):
+    """
+    Scaling data applies mean scaling to the users features as a method of normalization utilizing the apply_mean_scale function defined above.
+
+    Args:
+        df (pd.DataFrame) : The user feature dataframe containing popularity counts for each category.
+
+    Returns:
+        df (pd.DataFrame) : The user mean scaled user feature matrix.
+    """
+    # Modifies all columns containing category counts to have been mean scaled.
+    df.iloc[:,1:-1] = df.loc[:, (df.columns != 'user_id') & (df.columns != 'median')].apply(lambda x: apply_mean_scale(x), axis=1)
+
+    # Return the scaled dataframe.
+    return df
+
+def create_user_taste_profile_sub(df):
+    """
+    Uses the tensorflow compatible dataset to create the user feature for sub category preferences dataframe.
+
+    Args:
+        df (pd.DataFrame) : The tensorflow compatible dataset as a dataframe for modification.
+
+    Returns:
+        users (pd.DataFrame) : The user feature dataframe.
+    """
+    # Subset the dataframe for items where a user has a positive rating and then group by user ids applying a counter.
+    history = df[df['score'] == 1]
+    user_prof = history.groupby("user_id")['sub_category'].apply(Counter).to_frame()
+
+    # Unstacks the new columns and then removes multi-indexing.
+    user = user_prof.unstack(level=1, fill_value=0)
+    user.columns = user.columns.droplevel(0)
+    user = user.reset_index()
+
+    # Fill NaN values with zero and return the user frame.
+    user = user.fillna(0)
+    return user
+
+def mega_user_clustering(df, n_clusters=10, dim=2):
+    import umap.umap_ as umap
+    import sklearn.cluster as cluster
+
+    # Create a user feature matrix for categories.
+    user = create_user_taste_profile(df)
+
+    # Obtain the median hour of interaction for users and append it to the user feature matrix.
+    dates = create_times(df)
+    dates_frame = dates.to_frame().reset_index()
+    dates_frame["median"] = dates.apply(median_hour).values
+    user["median"] = dates_frame["median"]
+
+    # Scale the category preferences.
+    user = scaling_data(user)
+
+    # Scale the median interaction time.
+    user["median"] = user["median"] / 24
+
+    # Apply kmeans clustering to the data and add clustering labels
+    kmeans_labels = cluster.KMeans(n_clusters=n_clusters).fit_predict(user.iloc[:,1:])
+    user["cluster"] = kmeans_labels
+
+    # Here I would consider applying the umap embeddings into the kmeans clustering algorithm instead of the user feature vectors, however I am not sure
+    # If this is fully correct
+
+    user_umap = umap.UMAP(
+    n_neighbors=100,
+    min_dist=0.1,
+    n_components=dim,
+    n_epochs = 200,
+    random_state=42
+    ).fit_transform(user[user.columns.to_list()[1:]])
+
+    return user, kmeans_labels, user_umap
+
+

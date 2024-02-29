@@ -115,7 +115,7 @@ def create_temporal_graphs(behaviors_with_counts : pd.DataFrame, history_counts)
         None 
     """
 
-    cols = ['lifestyle', 'health', 'news', 'sports', 'weather', 'entertainment', 'autos', 'travel', 'foodanddrink', 'tv', 'finance', 'movies', 'video', 'music', 'kids', 'middleeast', 'northamerica']
+    cols = ['lifestyle', 'health', 'news', 'sports', 'weather', 'entertainment', 'autos', 'travel', 'foodanddrink', 'tv', 'finance', 'movies', 'video', 'music', 'kids', 'middleeast']
     impression_ = []
     history_ = []
     for col in cols:
