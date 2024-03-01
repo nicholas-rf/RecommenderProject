@@ -6,11 +6,10 @@ import keras.api._v2.keras
 import tensorflow as tf
 import pandas as pd
 import numpy as np
-from sqlalchemy import create_engine
+
 """
 Data processing is done in this module in order to avoid slowdown from hardware constraints in the eda_report.
 """
-
 
 def data_to_csv(behaviors : bool, fpath : str = '../MIND_small/tsv/behaviors.tsv') -> None:
     """
@@ -125,7 +124,6 @@ def create_popularity_dfs(news_frame : pd.DataFrame, behaviors_frame : pd.DataFr
             pd.DataFrame(data=article_popularity_history, columns=['article', 'popularity_history']),
             pd.DataFrame(data=article_popularity_impression, columns=['article', 'popularity_impression'])) 
 
-
 def create_popularity_csvs(news : pd.DataFrame, behaviors : pd.DataFrame, small : bool=True) -> None:
     """
     Extracts popularity for categories and articles from user history and impressions then exports them to csvs.
@@ -175,13 +173,6 @@ def create_popularity_csvs(news : pd.DataFrame, behaviors : pd.DataFrame, small 
     else:
         news.to_csv("../MIND_large/csv/news_with_popularity.csv")
         categories.to_csv('../MIND_large/csv/category_with_popularity.csv')
-
-def modify_time():
-    """ 
-    Modifies the time of the behaviors dataframe so that temporal analysis of popularity can occur. Can consider for collaborative
-    filtering looking at users that are also interacting at a similar time  
-    """
-
 
 def decompose_interactions(news : pd.DataFrame, behaviors : pd.DataFrame) -> pd.DataFrame:
     """
@@ -286,57 +277,21 @@ def create_text_embeddings(news):
         except:
             print(text_1)
 
-    # Apply the embeddings to the abstract and title columns.
-    # abstracts = dataset['abstract'].to_list()
-    # text = get_embeddings(abstracts[0])
-            
-    ## NEED TO INCLUDE TRUNCATING / COLLATING / SOMETHING LIKE THAT FOR THIS MODEL AS THERE ARE ABSTRACTS LARGER THAN INPUT LENGTH
-            # doesnt tokenzier do that?
-            # example text that doesnt work From Tiger Woods' historic win in Japan to a major shake-up at CBS Sports, here is what you missed from golf this weekend.
-            # Real talk. Demi Moore got candid about a variety of topics in her new book, Inside Out, including her famous exes, substance abuse struggles and her heartbreaking sexual assault. "The same question kept going through my head: How did I get here?" the 56-year-old actress began in the memoir, which was released on Tuesday, September 24. "The husband who I'd thought was the love of my life had cheated on me and then decided he didn't want to work on our marriage. My children weren't speaking me. … Is this life? I wondered. Because if this is it, I'm done." Moore provided insight into all three of her marriages in the book. She was married to Freddy Moore from 1980 to 1985, Bruce Willis from 1987 to 2000 and Ashton Kutcher from 2005 to 2013. The end of the G.I. Jane star's relationship with the former That 70's Show star, however, seemed to have the biggest impact on her. "I lost me," the Ghost actress told Diane Sawyer on Good Morning America on Monday, September 23, about their split. "I think the thing if I were to look back, I would say I blinded myself and I lost myself." Moore and Kutcher, who is 15 years her junior, started dating in 2003. After Us Weekly broke the news that he was allegedly unfaithful in 2011, the twosome called it quits. The Ranch star married Mila Kunis in July 2015. They share two kids: Wyatt, 4, and Dimitri, 2. Kutcher, for his part, reflected on the divorce during an appearance on Dax Shepard's "Armchair Expert" podcast last year. "Right after I got divorced, I went to the mountains for a week by myself," Kutcher told Shepard in February 2018. "I did no food, no drink   just water and tea. I took all my computers away, my phone, my everything. I was there by myself, so there was no talking. I just had a notepad, a pen and water and tea   for a week." He referred to the trip as "really spiritual and kind of awesome." "I wrote down every single relationship that I had where I felt like there was some grudge or some anything, regret, anything," Kutcher explained. "And I wrote letters to every single person, and on day seven, I typed them all out and then sent them." While Moore certainly doesn't hold back in Inside Out, a source told Us earlier this month that the Kutcher isn't worried about the book. "Ashton knew what was coming. He had a heads up on what is in the book," the insider said on September 13. "He's not mad or disappointed. This is Demi's truth, and he always felt sympathetic toward her. He knows her story and that her upbringing was difficult." Inside Out is available now. Scroll through for 10 revelations from the book:
-    # print(text)
+    # If to be implemented further data collation needs to be utilized 
+    # doesnt tokenzier do that?
+    # example text that doesnt work From Tiger Woods' historic win in Japan to a major shake-up at CBS Sports, here is what you missed from golf this weekend.
+    # Real talk. Demi Moore got candid about a variety of topics in her new book, Inside Out, including her famous exes, substance abuse struggles and her heartbreaking sexual assault. "The same question kept going through my head: How did I get here?" the 56-year-old actress began in the memoir, which was released on Tuesday, September 24. "The husband who I'd thought was the love of my life had cheated on me and then decided he didn't want to work on our marriage. My children weren't speaking me. … Is this life? I wondered. Because if this is it, I'm done." Moore provided insight into all three of her marriages in the book. She was married to Freddy Moore from 1980 to 1985, Bruce Willis from 1987 to 2000 and Ashton Kutcher from 2005 to 2013. The end of the G.I. Jane star's relationship with the former That 70's Show star, however, seemed to have the biggest impact on her. "I lost me," the Ghost actress told Diane Sawyer on Good Morning America on Monday, September 23, about their split. "I think the thing if I were to look back, I would say I blinded myself and I lost myself." Moore and Kutcher, who is 15 years her junior, started dating in 2003. After Us Weekly broke the news that he was allegedly unfaithful in 2011, the twosome called it quits. The Ranch star married Mila Kunis in July 2015. They share two kids: Wyatt, 4, and Dimitri, 2. Kutcher, for his part, reflected on the divorce during an appearance on Dax Shepard's "Armchair Expert" podcast last year. "Right after I got divorced, I went to the mountains for a week by myself," Kutcher told Shepard in February 2018. "I did no food, no drink   just water and tea. I took all my computers away, my phone, my everything. I was there by myself, so there was no talking. I just had a notepad, a pen and water and tea   for a week." He referred to the trip as "really spiritual and kind of awesome." "I wrote down every single relationship that I had where I felt like there was some grudge or some anything, regret, anything," Kutcher explained. "And I wrote letters to every single person, and on day seven, I typed them all out and then sent them." While Moore certainly doesn't hold back in Inside Out, a source told Us earlier this month that the Kutcher isn't worried about the book. "Ashton knew what was coming. He had a heads up on what is in the book," the insider said on September 13. "He's not mad or disappointed. This is Demi's truth, and he always felt sympathetic toward her. He knows her story and that her upbringing was difficult." Inside Out is available now. Scroll through for 10 revelations from the book:
+    
     news['abstract_embeddings'] = news['abstract'].apply(get_embeddings)
     news['title_embeddings'] = news['title'].apply(get_embeddings)
     return news
-
-def create_connection():
-    """
-    Creates a connection to the database by taking in a user password.
-    """
-    database_name = 'user_info'
-    connection_user = 'admin'
-    try:
-        connection_password = input("Enter Password: ")
-        connection_host = 'svc-57117697-8d22-448b-8b96-d3b2a46d0970-dml.aws-virginia-6.svc.singlestore.com'
-        connection_port = '3306'
-        connection_url = f"mysql+pymysql://{connection_user}:{connection_password}@{connection_host}:{connection_port}/{database_name}"
-        db_connection = create_engine(connection_url)
-        return db_connection
-    except Exception as e:
-        print(f"Exception {e} occured, try again.\n")
-        return create_connection()
-
-def push_to_DB(news : pd.DataFrame, behaviors : pd.DataFrame) -> None:
-    """ 
-    Pushes data to the SingleStore database for usage in modelling within docker containers and virtual machines.
-
-    Args:
-        news (pd.DataFrame) : The dataframe containing the data from the news csv.
-        behaviors (pd.DataFrame) : The dataframe containing the data from the behaviors csv.
-
-    Returns:
-        None.
-    """
-    db_connection = create_connection()
-    user_interaction_data = decompose_interactions(num_iterations=100000, news=news, behaviors=behaviors)
-    user_interaction_data.to_sql('user_behaviors', if_exists='replace', con=db_connection, index=False)
-    print("Push to Database Successful")
 
 def create_interaction_counts():
     """
     Creates interaction counts dataframes for usage in timestamp analysis.
     """
     
+    # Load in the datasets and set the index of the news dataset to news id    
     news = pd.read_csv('../MIND_large/csv/news.csv')
     copynews = news.set_index('news_id')
     behaviors = pd.read_csv('../MIND_large/csv/behaviors.csv')
@@ -389,8 +344,6 @@ def create_interaction_counts():
 
         return category_popularity_history if history else category_popularity_impression
 
-    print(pd.unique(copynews['category']))
-    print(category_popularity.columns.to_list())
     print('starting history popularity')
     behaviors[category_popularity.columns.to_list()[1:]] = behaviors.apply(lambda row : get_interaction_popularity(row, True), axis='columns', result_type='expand')
     behaviors.rename(columns={column : column + "_history" for column in category_popularity.columns.to_list()}, inplace=True)

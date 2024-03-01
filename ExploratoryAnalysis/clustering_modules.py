@@ -22,7 +22,7 @@ def vectorize_items(news_text):
         tf_matrix : The dataset vectorized into a TF-IDF matrix
     """
 
-    news_text['abstract'] = news_text['abstract'].fillna('')
+    news_text['abstract'] = news_text['abstract'].fillna(' . ')
 
     # Initialize vectorizers from scikit-learn
     bow_vectorizer = CountVectorizer(stop_words='english')
@@ -52,7 +52,7 @@ def create_UMAP_embeddings(dimension, data, metric='hellinger'):
         n_components=dimension,
         metric = metric,
         random_state=42,
-        njobs=1
+        n_jobs=1
     ).fit_transform(data)
     return embeddings
 
@@ -154,3 +154,4 @@ def visualize_all_item_clusters(bow_embeddings, tf_embeddings, distance_metric :
     
     # Assign the plot a tight layout.
     plt.tight_layout()
+
