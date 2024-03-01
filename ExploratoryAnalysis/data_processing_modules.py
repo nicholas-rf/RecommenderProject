@@ -1,12 +1,15 @@
 from datetime import datetime
+from collections import Counter
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from transformers import BertTokenizer, TFBertModel
 import keras.api._v2.keras
 import tensorflow as tf
 import pandas as pd
 import numpy as np
 import umap.umap_ as umap
+import sklearn.cluster as cluster
+
+
 """
 Data processing is done in this module in order to avoid slowdown from hardware constraints in the eda_report.
 """
@@ -414,28 +417,50 @@ def preprocess_BERT_embeddings(news : pd.DataFrame, small : bool) -> None:
     embedded_news.to_csv(fpath + '/csv/news_BERT_extracted_embeddings.csv')
 
 def create_hourly_long():
+    """
+    Creates long format dataframes with hourly popularity counts for data visualizations and as a potential feature for popularity.
+
+    Args:
+        None
+    
+    Returns:
+        behaviors2, unique_user_histories2 (pd.DataFrame) : Two pandas dataframes containing long format popularity counts for later graphing.
+    """
+    # Load in the behaviors with individual counts dataset and the news dataset.
     behaviors = pd.read_csv('../MIND_large/csv/behaviors_with_individual_counts.csv')
     news = pd.read_csv('../MIND_large/csv/news.csv')
+
+    # Drop duplicate user ID entries and subset for the user id, time and all history popularity counts.
     unique_user_histories = behaviors.drop_duplicates(subset='user_id')[['user_id', 'time'] + [category + '_history' for category in news['category'].unique()]]
+    
+    # Drop the history popularity columns.
     behaviors = behaviors.drop(columns=[category + '_history' for category in news['category'].unique()])
+    
+    # Change datetime values into specific hours. 
     behaviors = modify_hourly(behaviors)
-    behaviors = behaviors.drop(columns=['Unnamed: 0.1', 'Unnamed: 0', 'impression_id', 'history', 'impressions'])   
     unique_user_histories = modify_hourly(unique_user_histories)
+
+    # Drop uneeded columns and group by hour applying a summation to all interaction counts per hour.
+    behaviors = behaviors.drop(columns=['Unnamed: 0.1', 'Unnamed: 0', 'impression_id', 'history', 'impressions'])   
     behaviors2 = behaviors.drop(columns=['time', 'user_id']).groupby('hour', observed=False).agg('sum').reset_index()
     unique_user_histories2 = unique_user_histories.drop(columns=['time', 'user_id']).groupby('hour', observed=False).agg('sum').reset_index()
+
+    # Create a list of column names for each frame.
     cols = ['lifestyle', 'health', 'news', 'sports', 'weather', 'entertainment', 'autos', 'travel', 'foodanddrink', 'tv', 'finance', 'movies', 'video', 'music', 'kids', 'middleeast']
     impression_ = []
     history_ = []
     for col in cols:
         impression_.append(col + '_impression')
         history_.append(col + '_history')
+
+    # Apply normalization to the values.
     unique_user_histories2['history_div'] = unique_user_histories2[history_].apply(lambda x : sum(x), axis=1)
     behaviors2['impression_div'] = behaviors2[impression_].apply(lambda x : sum(x), axis=1)
     unique_user_histories2[history_] = unique_user_histories2.apply(lambda x : x[history_] / x['history_div'], axis=1)
     behaviors2[impression_] = behaviors2.apply(lambda x : x[impression_] / x['impression_div'], axis=1)
     return behaviors2, unique_user_histories2
 
-from collections import Counter
+
 
 def create_user_taste_profile(df):    
     """
