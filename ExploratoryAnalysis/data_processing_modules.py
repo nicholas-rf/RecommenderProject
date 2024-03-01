@@ -6,7 +6,7 @@ import keras.api._v2.keras
 import tensorflow as tf
 import pandas as pd
 import numpy as np
-
+import umap.umap_ as umap
 """
 Data processing is done in this module in order to avoid slowdown from hardware constraints in the eda_report.
 """
@@ -592,13 +592,12 @@ def create_user_taste_profile_sub(df):
     user = user.fillna(0)
     return user
 
-def mega_user_clustering(df, n_clusters=10, dim=2):
-    import umap.umap_ as umap
-    import sklearn.cluster as cluster
 
+
+def mega_user_clustering(df, n_clusters=10, dim=2):
     # Create a user feature matrix for categories.
     user = create_user_taste_profile(df)
-
+    
     # Obtain the median hour of interaction for users and append it to the user feature matrix.
     dates = create_times(df)
     dates_frame = dates.to_frame().reset_index()
