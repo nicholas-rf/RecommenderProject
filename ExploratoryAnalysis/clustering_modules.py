@@ -34,7 +34,7 @@ def vectorize_items(news_text):
     return bow_matrix, tf_matrix
 
 
-def create_UMAP_embeddings(dimension, data, metric='hellinger'):
+def create_UMAP_embeddings(dimension, data, metric='hellinger',n_neighors=30,min_dist=0.0):
     """
     Performes umap dimension reduction on the data up to the dimension specified by the associated parameter.
 
