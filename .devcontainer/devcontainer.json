@@ -1,0 +1,45 @@
+{
+    "name": "recommendersystem",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+
+    "updateRemoteUserUID": false,
+    "overrideCommand": false,
+    "shutdownAction": "none",
+    
+    // `type=bind,z` required for Podman, replace with `type=bind` if using Docker
+    "workspaceMount": "source=${localWorkspaceFolder},target=/home/jovyan/work,type=bind", 
+    "workspaceFolder": "/home/jovyan/work",
+
+    "runArgs": [
+        "--user=1000:100",
+        "--name=recommendersystem", // needs to be unique
+        "--hostname=recommendersystem_container" // needs to be unique
+    ],
+
+    "forwardPorts": [8888],
+    "portsAttributes": {
+        "8888": {
+            // Naming the Jupyterlab port
+            "label": "Jupyterlab",
+            // Disable autoforwarding of ports (by default, only 8888 is necessary)
+            "onAutoForward": "ignore"
+        }
+    },
+
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "python.defaultInterpreterPath": "/opt/conda/bin/python"
+            },
+            "extensions": [
+                "ms-python.python",             // for Python
+                "ms-toolsai.jupyter",           // for Python
+                "ms-toolsai.jupyter-keymap",    // for Python
+                "ms-vscode.live-server",
+                "analytic-signal.preview-pdf"
+            ]
+        }
+    }
+}
