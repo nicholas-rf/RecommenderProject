@@ -1,7 +1,12 @@
 {
     "name": "recommendersystem",
     "build": {
-        "dockerfile": "Dockerfile"
+        "dockerfile": "Dockerfile",
+        "context" : ".",
+        "args": { 
+            "NB_UID": "1001",
+            "NB_GID": "1001"
+        }
     },
 
     "updateRemoteUserUID": false,
@@ -13,7 +18,7 @@
     "workspaceFolder": "/home/jovyan/work",
 
     "runArgs": [
-        "--user=1000:100",
+        "--user=1000:1000",
         "--name=recommendersystem", // needs to be unique
         "--hostname=recommendersystem_container" // needs to be unique
     ],
