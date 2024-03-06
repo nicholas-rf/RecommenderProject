@@ -5,10 +5,12 @@ def load_dataset(train_split = '80_20'):
     """
     Loads in the full training dataset predicated upon the train test split specified. 
     """
+    
     full = pd.DataFrame()
     for i in range(2):
         df = pd.read_csv(f"../MIND_large/{train_split}/train_chunk{i}.csv", index_col=0)
         full = pd.concat([full, df])   
+    print(full)
     news = pd.read_csv('../MIND_large/csv/news_cluster_labels.csv')
     all_ratings = full.groupby('user_id')['news_id'].apply(list).reset_index()
     scores = full.groupby('user_id')['score'].apply(list).reset_index()
