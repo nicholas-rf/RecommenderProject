@@ -1,22 +1,57 @@
 import pandas as pd
 import numpy as np
 
-def load_dataset(train_split = '80_20'):
+def load_dataset(train_split = '80_20', full=False):
     """
     Loads in the full training dataset predicated upon the train test split specified. 
     """
     
-    full = pd.DataFrame()
+    dataset = pd.DataFrame()
+    if not full:    
+        for i in range(2):
+            df = pd.read_csv(f"../MIND_large/{train_split}/train_chunk{i}.csv", index_col=0)
+            dataset = pd.concat([dataset, df])   
+        
+    else:
+        for i in range(2):
+            df = pd.read_csv(f"../MIND_large/{train_split}/train_chunk{i}.csv", index_col=0)
+            dataset = pd.concat([dataset, df])
+        test = pd.read_csv(f"../MIND_large/{train_split}/test.csv", index_col=0)
+        dataset = pd.concat([dataset, test])
+    
+    news = pd.read_csv('../MIND_large/csv/news_cluster_labels.csv')
+    all_ratings = dataset.groupby('user_id')['news_id'].apply(list).reset_index()
+    scores = dataset.groupby('user_id')['score'].apply(list).reset_index()
+    all_ratings['scores'] = scores['score']
+
+    user_clustered = pd.read_csv('../MIND_large/csv/full_user_clusters.csv') # needs to be updated for the train test split as well :D 
+    
+    return all_ratings, news, user_clustered
+
+def load_dataset_diff(train_split = '80_20', full=False):
+    """
+    Loads in the full training dataset predicated upon the train test split specified. 
+    """
+    train_dataset = pd.DataFrame()
+
     for i in range(2):
         df = pd.read_csv(f"../MIND_large/{train_split}/train_chunk{i}.csv", index_col=0)
-        full = pd.concat([full, df])   
-    print(full)
-    news = pd.read_csv('../MIND_large/csv/news_cluster_labels.csv')
-    all_ratings = full.groupby('user_id')['news_id'].apply(list).reset_index()
-    scores = full.groupby('user_id')['score'].apply(list).reset_index()
-    all_ratings['scores'] = scores['score']
-    user_clustered = pd.read_csv('../MIND_large/csv/full_user_clusters.csv') # needs to be updated for the train test split as well :D 
-    return all_ratings, news, user_clustered
+        train_dataset = pd.concat([train_dataset, df])
+    
+    test = pd.read_csv(f"../MIND_large/{train_split}/test.csv", index_col=0)
+    full_dataset = pd.concat([train_dataset, test])
+
+    train_all_ratings = train_dataset.groupby('user_id')['news_id'].apply(list).reset_index()
+    train_scores = train_dataset.groupby('user_id')['score'].apply(list).reset_index()
+    train_all_ratings['scores'] = train_scores['score']
+
+    full_all_ratings = full_dataset.groupby('user_id')['news_id'].apply(list).reset_index()
+    full_scores = full_dataset.groupby('user_id')['score'].apply(list).reset_index()
+    full_all_ratings['scores'] = full_scores['score']
+
+    # now we have train and test as splits
+    # full_all.merge(train_all, how='left', on='user_id', suffixes=('_test', '_train')).fillna(0)
+    return train_all_ratings, full_all_ratings
 
 def create_item_cluster_mat(ratings_df, news, num_users = 255990, num_clusters = 30, isALS=False):
     """
@@ -46,7 +81,7 @@ def create_item_cluster_mat(ratings_df, news, num_users = 255990, num_clusters =
     """
     # Initialize the hash map that will create the matrix as a list of np zero arrays for each cluster and the hashmap of item clusters .
     item_clusters = {item : cluster for item, cluster in zip(news['news_id'], news['labels'])}
-    matrix = {cluster : np.full(num_users, 0, dtype='int8') for cluster in range(num_clusters)} 
+    matrix = {cluster : np.full(num_users, 0, dtype='int16') for cluster in range(num_clusters)} 
     
     if isALS:
         # Initialize the cluster hashmap, which is used to track an item index and all row indices that engage with that item.
@@ -58,7 +93,7 @@ def create_item_cluster_mat(ratings_df, news, num_users = 255990, num_clusters =
     # Initialize a counter to keep track of user index.
     counter = 0
 
-    # Iterate over every user, their ratings and score in the rating matrix .
+    # Iterate over every user, their ratings and score in the rating matrix.
     for user, ratings, score in zip(ratings_df['user_id'], ratings_df['news_id'], ratings_df['scores']):
         for index in range(len(ratings)):
             # Get the news id of the interaction and their rating.
@@ -140,3 +175,4 @@ def create_user_cluster_mat(ratings_df, news, user_clustered, num_user_clusters=
         
     return np.column_stack(list(matrix.values())), item_idx,  cluster_idx if isALS else np.column_stack(list(matrix.values()))
 
+# when making the matrix we make it with all possible users in mind
