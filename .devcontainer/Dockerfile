@@ -9,9 +9,6 @@ ENV GITHUB_CLI_VERSION 2.30.0
 ###########################
 USER root
 
-RUN chown -R 1000:1000 /home/jovyan/work && \
-    chmod -R 775 /home/jovyan/work
-
 ### System dependencies. Feel free to add packages as necessary.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \

@@ -2,11 +2,8 @@
     "name": "recommendersystem",
     "build": {
         "dockerfile": "Dockerfile",
-        "context" : ".",
-        "args": { 
-            "NB_UID": "1001",
-            "NB_GID": "1001"
-        }
+        "context" : "."
+
     },
 
     "updateRemoteUserUID": false,
