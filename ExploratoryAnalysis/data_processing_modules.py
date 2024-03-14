@@ -1,22 +1,18 @@
 from datetime import datetime
 from collections import Counter
-import os
-from transformers import BertTokenizer, TFBertModel
-import keras.api._v2.keras
-import tensorflow as tf
+from tqdm import tqdm
 import pandas as pd
 import numpy as np
-import umap.umap_ as umap
-import sklearn.cluster as cluster
-
+import clustering_modules as cm
 
 """
-Data processing is done in this module in order to avoid slowdown from hardware constraints in the eda_report.
+This module contains several methods used for feature extraction and to process and transform data for use in exploratory data analysis. 
 """
 
-def data_to_csv(behaviors : bool, fpath : str = '../MIND_small/tsv/behaviors.tsv') -> None:
+def data_to_csv(behaviors : bool, fpath : str) -> None:
     """
     Takes a tab seperated variable file from the MIND dataset, adds columns to it, and exports it as a CSV.
+    This only needs to be ran at the start of the project. 
 
     Args:
         behaviors (bool) : A boolean which signifies that the incomming tsv is either the behaviors tsv or the news tsv.
@@ -48,7 +44,7 @@ def data_to_csv(behaviors : bool, fpath : str = '../MIND_small/tsv/behaviors.tsv
 
 def clean_impression(impression : str = 'N55689-1') -> dict:
     """ 
-    Cleans up a user impression for its characteristics.
+    Cleans up a user impression for its characteristics. 
 
     Args:
         impression (str) : A users impression on a recommended article.
@@ -57,10 +53,10 @@ def clean_impression(impression : str = 'N55689-1') -> dict:
         impression_info (dict) : A dictionary containing keys for the rating and article in the impression.
     """
 
-    # Split the impression by '-'
+    # Split the impression by '-'.
     impression_info = impression.split('-')
 
-    # Return a dictionary with the articleID and the click indicator
+    # Return a dictionary with the articleID and the impression score.
     return {'score':impression_info[1], 'article_ID':impression_info[0]}  
 
 def create_popularity_dfs(news_frame : pd.DataFrame, behaviors_frame : pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -89,8 +85,8 @@ def create_popularity_dfs(news_frame : pd.DataFrame, behaviors_frame : pd.DataFr
     user_ids = []
 
     # Iterate through every row of the columns history and impressions in the dataframe.
-    for user_id, history, impressions in zip(behaviors_frame['user_id'], behaviors_frame['history'], behaviors_frame['impressions']):
-
+    for user_id, history, impressions in tqdm(zip(behaviors_frame['user_id'], behaviors_frame['history'], behaviors_frame['impressions']),
+                        total=len(behaviors_frame['user_id']), desc="Iterating Over Behaviors"):
         # If our history is not a NaN.
         if type(history) != float:
             if user_id not in user_ids:
@@ -143,6 +139,7 @@ def create_popularity_csvs(news : pd.DataFrame, behaviors : pd.DataFrame, small 
     """
 
     # Create the dataframes with information about how populary each category is.
+    print("Creating Popularity Counts")
     cat_pop_hist, cat_pop_imp, art_pop_hist, art_pop_imp = create_popularity_dfs(news, behaviors)
 
     # Merge the article popularities onto the news dataframe.
@@ -166,17 +163,18 @@ def create_popularity_csvs(news : pd.DataFrame, behaviors : pd.DataFrame, small 
     cat_test2['index'] = cat_test2['index'].apply(lambda x : 'history')
     cat_test2.rename(columns={'index' : 'popularity_type'}, inplace=True)
 
-    # Concatenate the 2 dataframes on rows
+    # Concatenate the 2 dataframes on rows.
     categories = pd.concat([cat_test, cat_test2], axis=0)
     
-    # Output the CSVs to the respective folder
+    # Output the CSVs to the respective folder.
+    print("Outputting To Csv")
     if small:
         news.to_csv("../MIND_small/csv/news_with_popularity.csv")
         categories.to_csv('../MIND_small/csv/category_with_popularity.csv')
     else:
         news.to_csv("../MIND_large/csv/news_with_popularity.csv")
         categories.to_csv('../MIND_large/csv/category_with_popularity.csv')
-from tqdm import tqdm
+        
 def decompose_interactions(news : pd.DataFrame, behaviors : pd.DataFrame) -> pd.DataFrame:
     """
     Iterates through user interactions to create a tensorflow compatible dataset comprised of multiple rows per user, each row detailing
@@ -238,67 +236,17 @@ def decompose_interactions(news : pd.DataFrame, behaviors : pd.DataFrame) -> pd.
     # Returning a dataframe with the dictionary as its input.
     return pd.DataFrame(data=data)
 
-def create_text_embeddings(news):
+def create_interaction_counts(behaviors):
     """
-    Applies pre-trained BERT embeddings to the feature columns with text data for use within clustering methods.
-
-    Args:
-        news (pd.DataFrame) : News dataset containing the articles with different abstracts and title for embedding collection.
-
-    Returns:
-        dataset (pd.DataFrame) : A dataset with embeddings columns.
-    """
-    # Initialize the bert tokenizer and model from bert base cased.
-    tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
-    model = TFBertModel.from_pretrained('bert-base-cased')
-
-    # Create a dense layer with the embedding dimension to process embeddings.
-    embedding_dimension = 8
-    dense_layer = keras.layers.Dense(embedding_dimension, activation='linear')
-
-    # Define a function to get the embeddings from the models and apply them to the text.
-    def get_embeddings(text_1):
-        """
-        Gets embeddings from pre trained bert model for news information used for clustering.
-        """
-        try:
-            if type(text_1) == float:
-                return [0]
-
-            # Apply the tokenizer to the text and return it in the tensorflow tensor format. 
-            encoded_text = tokenizer(text_1, return_tensors='tf')
-
-            # Get the output from BERT model with the encoded text.
-            bert_output = model(encoded_text)
-
-            # Use the pooled output for a single vector representation of the input. 
-            pooled_output = bert_output.pooler_output
-
-            # Apply dense layer to project to desired size.
-            # embedding_vector = list(dense_layer(pooled_output).numpy())
-            # return embedding_vector
-            return pooled_output.numpy().tolist()
-        except:
-            print(text_1)
-
-    # If to be implemented further data collation needs to be utilized 
-    # doesnt tokenzier do that?
-    # example text that doesnt work From Tiger Woods' historic win in Japan to a major shake-up at CBS Sports, here is what you missed from golf this weekend.
-    # Real talk. Demi Moore got candid about a variety of topics in her new book, Inside Out, including her famous exes, substance abuse struggles and her heartbreaking sexual assault. "The same question kept going through my head: How did I get here?" the 56-year-old actress began in the memoir, which was released on Tuesday, September 24. "The husband who I'd thought was the love of my life had cheated on me and then decided he didn't want to work on our marriage. My children weren't speaking me. … Is this life? I wondered. Because if this is it, I'm done." Moore provided insight into all three of her marriages in the book. She was married to Freddy Moore from 1980 to 1985, Bruce Willis from 1987 to 2000 and Ashton Kutcher from 2005 to 2013. The end of the G.I. Jane star's relationship with the former That 70's Show star, however, seemed to have the biggest impact on her. "I lost me," the Ghost actress told Diane Sawyer on Good Morning America on Monday, September 23, about their split. "I think the thing if I were to look back, I would say I blinded myself and I lost myself." Moore and Kutcher, who is 15 years her junior, started dating in 2003. After Us Weekly broke the news that he was allegedly unfaithful in 2011, the twosome called it quits. The Ranch star married Mila Kunis in July 2015. They share two kids: Wyatt, 4, and Dimitri, 2. Kutcher, for his part, reflected on the divorce during an appearance on Dax Shepard's "Armchair Expert" podcast last year. "Right after I got divorced, I went to the mountains for a week by myself," Kutcher told Shepard in February 2018. "I did no food, no drink   just water and tea. I took all my computers away, my phone, my everything. I was there by myself, so there was no talking. I just had a notepad, a pen and water and tea   for a week." He referred to the trip as "really spiritual and kind of awesome." "I wrote down every single relationship that I had where I felt like there was some grudge or some anything, regret, anything," Kutcher explained. "And I wrote letters to every single person, and on day seven, I typed them all out and then sent them." While Moore certainly doesn't hold back in Inside Out, a source told Us earlier this month that the Kutcher isn't worried about the book. "Ashton knew what was coming. He had a heads up on what is in the book," the insider said on September 13. "He's not mad or disappointed. This is Demi's truth, and he always felt sympathetic toward her. He knows her story and that her upbringing was difficult." Inside Out is available now. Scroll through for 10 revelations from the book:
-    
-    news['abstract_embeddings'] = news['abstract'].apply(get_embeddings)
-    news['title_embeddings'] = news['title'].apply(get_embeddings)
-    return news
-
-def create_interaction_counts():
-    """
-    Creates interaction counts dataframes for usage in timestamp analysis.
+    Creates interaction counts dataframes for usage in timestamp analysis. What happens here is that news, behaviors and categories with
+    popularity is loaded in, then get_interaction_popularity goes through all impressions getting popularity counts for every interaction.
+    These popularity counts are still attached to a time stamp meaning we can aggregate by a binned time stamp and use the results in 
+    temporal popularity analysis.
     """
     
     # Load in the datasets and set the index of the news dataset to news id    
     news = pd.read_csv('../MIND_large/csv/news.csv')
     copynews = news.set_index('news_id')
-    behaviors = pd.read_csv('../MIND_large/csv/behaviors.csv')
     category_popularity = pd.read_csv('../MIND_large/csv/category_with_popularity.csv')
     category_popularity.drop(columns=['Unnamed: 0'], inplace=True)
 
@@ -386,40 +334,11 @@ def modify_hourly(behaviors):
     behaviors['hour'] = behaviors['hour'].apply(lambda time_string : time_string.split(" ")[-1][:2])
     return behaviors
 
-def simple_string_to_list(input_str):
-    """Reformats separate list of embeddings so it is compatible for expansion"""    
-    processed_string = input_str.replace("[[", "[").replace("]]", "]").replace('\n', '').replace(', dtype=float32)]', '')
-    array = list(eval(processed_string))
-    return array
-
-def preprocess_BERT_embeddings(news : pd.DataFrame, small : bool) -> None:
-    """
-    Prepares and applies BERT embeddings to the dataset for usage within clustering.  
-    """
-    # news = create_text_embeddings(news)
-    if small:
-        fpath = '../MIND_small'
-    else:
-        fpath = '../MIND_large'
-
-    # news.to_csv(fpath + '/csv/news_BERT_embeddings.csv')
-    # del news
-    print('starting')
-    embedded_news = pd.read_csv(fpath + '/csv/news_big_embeddings.csv', index_col = 0).drop(columns=['abstract_entities', 'title_entities', 'url'])
-    embedded_news = embedded_news[embedded_news['abstract_embeddings'] != '[0]']
-    embedded_news = embedded_news[embedded_news['abstract_embeddings'].isna() == False]
-    embedded_news['abstract_embeddings'] = embedded_news['abstract_embeddings'].apply(lambda x : simple_string_to_list(x))
-    embedded_news['title_embeddings'] = embedded_news['title_embeddings'].apply(lambda x : simple_string_to_list(x))
-    abstracts = pd.DataFrame(embedded_news['abstract_embeddings'].to_list(), index=embedded_news.index)
-    titles = pd.DataFrame(embedded_news['title_embeddings'].to_list(), index=embedded_news.index)
-    titles.columns = ['{}_title'.format(title) for title in titles.columns]
-    abstracts.columns = ['{}_abstract'.format(title) for title in abstracts.columns]
-    embedded_news = pd.concat([embedded_news, titles, abstracts], axis=1).drop(columns=['abstract_embeddings','title_embeddings', 'title', 'abstract'])
-    embedded_news.to_csv(fpath + '/csv/news_BERT_extracted_embeddings.csv')
-
 def create_hourly_long():
     """
-    Creates long format dataframes with hourly popularity counts for data visualizations and as a potential feature for popularity.
+    Creates long format dataframes with hourly popularity counts for data visualizations and as a potential feature for popularity. 
+    This function utilizes the 'modify_hourly' function which bins the data into specific hours based off of the time frame present in
+    the dataset.
 
     Args:
         None
@@ -427,7 +346,8 @@ def create_hourly_long():
     Returns:
         behaviors2, unique_user_histories2 (pd.DataFrame) : Two pandas dataframes containing long format popularity counts for later graphing.
     """
-    # Load in the behaviors with individual counts dataset and the news dataset.
+    # Load in the behaviors with individual counts dataset and the news dataset.    
+    # Behaviors with individual counts is created with create_interaction_counts
     behaviors = pd.read_csv('../MIND_large/csv/behaviors_with_individual_counts.csv')
     news = pd.read_csv('../MIND_large/csv/news.csv')
 
@@ -461,11 +381,10 @@ def create_hourly_long():
     behaviors2[impression_] = behaviors2.apply(lambda x : x[impression_] / x['impression_div'], axis=1)
     return behaviors2, unique_user_histories2
 
-
-
 def create_user_taste_profile(df):    
     """
-    Uses the tensorflow compatible dataset to create the user feature dataframe.
+    Uses the tensorflow compatible dataset to create the user feature dataframe. The user feature dataframe
+    contains counts for each category and sub category so that user preference can be utilized later on.
 
     Args:
         df (pd.DataFrame) : The tensorflow compatible dataset as a dataframe for modification.
@@ -473,151 +392,39 @@ def create_user_taste_profile(df):
     Returns:
         users (pd.DataFrame) : The user feature dataframe.
     """
-    # Subset the dataframe for items where a user has a positive rating and then group by user ids applying a counter.
-    user_prof = df.groupby("user_id")['category'].apply(Counter).to_frame()
+    # Subset the dataframe for only interactions with a positive score.
+    subset = df[df['score'] == 1]
 
-    # Unstacks the new columns and then removes multi-indexing.
-    user = user_prof.unstack(level=1, fill_value=0)
-    user.columns = user.columns.droplevel(0)
-    user = user.reset_index()
+    # Group by user ID summing all scores, then take the scores that are zero's index to get a list of all users who have no ratings.
+    no_ratings_grouped = df.groupby('user_id')['score'].agg(sum).to_frame()
+    no_score_users = no_ratings_grouped[no_ratings_grouped['score'] == 0].index 
 
-    # Fill NaN values with zero and return the user frame.
-    user = user.fillna(0) 
-    return user
+    # Group by user ID and apply a counter to each category, then transform it back into a normal dataframe.
+    user_categories = subset.groupby("user_id")['category'].apply(Counter).to_frame().unstack(level=1, fill_value=0)
+    user_categories.columns = user_categories.columns.droplevel(0)
+    user_categories = user_categories.reset_index().fillna(0)
 
-def convert_time(dates):
-    """
-    Modifies the list of datetime strings in a user row into datetime objects for use within feature extraction.
+    # Group by user ID and apply a counter to each sub category, then transform it back into a normal dataframe. 
+    user_sub_categories = subset.groupby("user_id")['sub_category'].apply(Counter).to_frame().unstack(level=1, fill_value=0)
+    user_sub_categories.columns = user_sub_categories.columns.droplevel(0)
+    user_sub_categories = user_sub_categories.reset_index().fillna(0)
 
-    Args:
-        dates (list) : List of strings containing date and time of interaction.
+    # Initialize a list of duplicate columns found in user_sub_categories to drop.
+    drop_cols = ['user_id', 'sports', 'video', 'games', 'lifestyle', 'tv', 'news']
+    user_sub_categories.drop(columns=drop_cols, inplace = True)
 
-    Returns:
-        time_objs (list) : List of datetime objects corresponding to each date string in the list given.
-    """
-    # Initialize an empty list to store datetime objects.
-    time_objs = []
+    # Create a complete user profile data frame by concatenating the two dataframes containing user preferences.
+    complete_profile = pd.concat([user_categories, user_sub_categories], axis=1)
 
-    # Set up the regular expression to use in datetime.
-    time_regex = '%m/%d/%Y %I:%M:%S %p'
+    # Create a list of nested lists to build new rows in the user preferences dataframe for users without any ratings. 
+    data = [[user_id] + [0 for _ in range(len(complete_profile.columns)-1)] for user_id in no_score_users]
 
-    # For all dates in the users dates transform the date into a datetime object and add it to time_objs.
-    for date in dates:
-        time_objs.append(datetime.strptime(date,time_regex))
+    # Concatenate the result on to finish obtaining user category and sub category preferences. 
+    complete_profile = pd.concat([complete_profile, pd.DataFrame(data=data, columns=complete_profile.columns)]).sort_values('user_id')
 
-    # Return time_objs.
-    return time_objs
+    return complete_profile,  user_categories.columns, user_sub_categories.columns
 
-def create_times(df):
-    """
-    Creates a dataframe of users and a list of all their interaction time stamps as datetime objects. 
-
-    Args:
-        df (pd.DataFrame) : The tensorflow compatible dataset as a dataframe for modification.
-
-    Returns:
-        date_objs (pd.DataFrame) : Dataframe containing users and a list of datetime objects of their interaction time stamps.
-    """
-    
-    # Group by user id and apply a list to each users time columns.
-    date_strings = df.groupby("user_id")["time"].apply(list)
-    
-    # Apply the convert time function and return the resulting dataframe.
-    date_objs = date_strings.map(convert_time)
-    return date_objs
-
-def median_hour(dates):
-    """
-    Finds the median hour that users interacted with articles.
-
-    Args:
-        dates (list) : List of datetime objs.
-
-    returns:
-        (int) : The median hour of their interactions.
-    """
-    # Initialize an empty list to hold the hours of a users interactions.
-    hours = []
-
-    # Populate the list with hours
-    for date in dates:
-        hours.append(date.hour)
-    
-    # Return the median hour of their interactions.
-    return np.median(hours)
-
-def remove_dups_tf (df):
-    """
-    deprecated, tensorflow compatible dataset now contains no duplicates of histories
-    Could be utilized to check if duplicates still exist within the dataset
-    """
-    timeless = df.drop("time", axis=1)
-    dups = timeless[timeless.duplicated].index
-    new_df = df.drop(index=dups, inplace=True)
-    print(f"Removed {len(dups)} duplicates.")
-
-def apply_mean_scale (row):
-    """
-    Applies a mean scale to the user preferences.
-
-    Args:
-        row (pd.DataFrame) : A row from the user features matrix to apply scaling to.
-
-    Returns:
-        Returns the values in the row after having been scaled.
-    """
-    # Get the total of all values in the row
-    total = row.values.sum()
-
-    # Initialize and then populate a list of all values after having been scaled.
-    new_values = []
-    for value in row:
-        value = value / total
-        new_values.append(value)
-
-    # Return the values as a series
-    return pd.Series(new_values)
-        
-def scaling_data(df):
-    """
-    Scaling data applies mean scaling to the users features as a method of normalization utilizing the apply_mean_scale function defined above.
-
-    Args:
-        df (pd.DataFrame) : The user feature dataframe containing popularity counts for each category.
-
-    Returns:
-        df (pd.DataFrame) : The user mean scaled user feature matrix.
-    """
-    # Modifies all columns containing category counts to have been mean scaled.
-    df.iloc[:,1:-1] = df.loc[:, (df.columns != 'user_id') & (df.columns != 'median')].apply(lambda x: apply_mean_scale(x), axis=1)
-
-    # Return the scaled dataframe.
-    return df
-
-def create_user_taste_profile_sub(df):
-    """
-    Uses the tensorflow compatible dataset to create the user feature for sub category preferences dataframe.
-
-    Args:
-        df (pd.DataFrame) : The tensorflow compatible dataset as a dataframe for modification.
-
-    Returns:
-        users (pd.DataFrame) : The user feature dataframe.
-    """
-    # Subset the dataframe for items where a user has a positive rating and then group by user ids applying a counter.
-    history = df[df['score'] == 1]
-    user_prof = history.groupby("user_id")['sub_category'].apply(Counter).to_frame()
-
-    # Unstacks the new columns and then removes multi-indexing.
-    user = user_prof.unstack(level=1, fill_value=0)
-    user.columns = user.columns.droplevel(0)
-    user = user.reset_index()
-
-    # Fill NaN values with zero and return the user frame.
-    user = user.fillna(0)
-    return user
-
-def apply_transformations(df):
+def create_user_features(df):
     """
     Applies transformations to the dataset to create a user feature dataset as well as prepare data for clustering.
 
@@ -627,22 +434,85 @@ def apply_transformations(df):
     Returns:
         user (pd.DataFrame) : The user feature dataset generated by `apply_transformations`.
     """
-    user = create_user_taste_profile(df)
+    # Modify the tensorflow dataset with create_user_taste_profile to get user preferences.
+    user, cat_columns, sub_cat_columns = create_user_taste_profile(df)
     
+    # Scale the category preferences.
+    category_sums = user[cat_columns[1:]].sum(axis=1)
+    sub_category_sums = user[sub_cat_columns].sum(axis=1)
+    user[cat_columns[1:]] = user[cat_columns[1:]].div(category_sums, axis=0)
+    user[sub_cat_columns] = user[sub_cat_columns].div(sub_category_sums, axis=0)
+
     # Obtain the median hour of interaction for users and append it to the user feature matrix.
     medians = df.groupby("user_id")["time"].apply(np.median).reset_index()
-    user["median"] = medians["time"]
-
-    # Scale the category preferences.
-    user = scaling_data(user)
+    user["median_time"] = medians["time"]
 
     # Scale the median interaction time.
-    user["median"] = user["median"] / 24
+    user["median_time"] = user["median_time"] / 24
     return user
-    
-def load_dataset():
-    full = pd.DataFrame()
-    for i in range(4):
-        df = pd.read_csv(f"../MIND_large/csv/tensorflow_dataset_chunk{i}.csv", index_col=0)
-        full = pd.concat([full, df])
-    return full
+
+def create_item_features():
+    """
+    Creates item features for use in ALS and SGD. The resulting data is output to a csv and stored for later concatenation of cluster labels
+    and eventual use for matrix factorization based recommender systems. 
+    """
+
+    # Read in the new with popularity dataset to have access to popularity counts.
+    news = pd.read_csv("../MIND_large/csv/news_with_popularity.csv", index_col=0)
+
+    # Create the popularity column in the item feature dataset by combining the history and impression popularity of an article.
+    news['popularity'] =  news['popularity_history'] + news['popularity_impression']
+
+    # Drop the history and impression popularity columns.
+    news.drop(columns = ['popularity_history', 'popularity_impression', 'url', 'title_entities', 'abstract_entities'], inplace=True)
+
+    # Dummy code the category variables sub_category and category, then concatenate the result to the item features.
+    dummy_coded_categories = pd.get_dummies(news.drop(columns=['popularity', 'news_id', 'title', 'abstract']), dtype='float')
+    drop_cols = ['sub_category_' + col for col in ['sports', 'video', 'games', 'lifestyle', 'tv', 'news']]
+    dummy_coded_categories.drop(columns=drop_cols, inplace=True)
+    dummy_coded_categories.columns = [column.split('_')[-1] for column in dummy_coded_categories.columns]
+    item_features = pd.concat([news.drop(columns=['category', 'sub_category']), dummy_coded_categories], axis=1)
+
+    # Return the item features.
+    return item_features    
+
+def chunk_tf_dataset(tf_dataset):
+    """
+    Breaks the Tensorflow compatible dataset into chunks.
+
+    Args:
+        tf_dataset (pd.DataFrame) : The Tensorflow compatible dataset to save as several chunks.
+    """
+    fpath = f'../MIND_large/csv/tensorflow_dataset'
+    idx = [5161473 * i for i in range(5)]
+    idx[-1] += 1
+    for i in range(len(idx)-1):
+        start, end = idx[i], idx[i+1]
+        chunk = tf_dataset[(tf_dataset.index >= start) & (tf_dataset.index < end)]
+        chunk.to_csv(fpath + f'_chunk{i}.csv')
+
+def check_duplicates(df):
+    """
+    deprecated, tensorflow compatible dataset now contains no duplicates of histories
+    Could be utilized to check if duplicates still exist within the dataset
+    """
+    timeless = df.drop("time", axis=1)
+    dups = timeless[timeless.duplicated].index
+    new_df = df.drop(index=dups, inplace=True)
+    print(f"Removed {len(dups)} duplicates.")
+
+def add_embeddings():
+    """
+    Something to add embeddings to item features, potential use but other stuff to do
+    """
+    # if umap_dim != 0:
+
+    #     # Subset for only the text data of the news dataset.
+    #     news_text = news.drop(columns=['news_id', 'category', 'sub_category', 'popularity'])
+        
+    #     # Use clustering modules to vectorize and then create reduced embeddings of the text for the best performing parameters.
+    #     _, tf_matrix = cm.vectorize_items(news_text)
+    #     reduced_embeddings = cm.create_UMAP_embeddings(umap_dim, tf_matrix)
+
+    #     for i in range(umap_dim):
+    #         news[f'reduced_embeddings_{i+1}'] = reduced_embeddings[:, i]
