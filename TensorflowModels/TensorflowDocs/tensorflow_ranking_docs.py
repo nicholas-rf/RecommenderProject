@@ -20,7 +20,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import tensorflow_recommenders as tfrs
-import keras.api._v2.keras as keras
+import keras
 
 
 ## Dataset prep
@@ -54,10 +54,10 @@ unique_user_ids = np.unique(np.concatenate(list(user_ids)))
 # amongst architectures is larger 
 # A model of many stacked dense layers is a common architecture for ranking tasks
 
-class RankingModel(tf.keras.Model):
+class RankingModel(keras.Model):
 
   def __init__(self):
-    ## Similar syntax to tensorflow_retrieval_docs.py ## 
+    # Similar syntax to tensorflow_retrieval_docs.py ## 
     super().__init__()
     embedding_dimension = 32
 
@@ -116,7 +116,7 @@ class MovielensModel(tfrs.models.Model):
     self.ranking_model: keras.Model = RankingModel()
     self.task: keras.layers.Layer = tfrs.tasks.Ranking(
       loss = keras.losses.MeanSquaredError(),
-      metrics=[keras.metrics.RootMeanSquaredError()]
+      metrics = [keras.metrics.RootMeanSquaredError()]
     )
 
   def call(self, features: Dict[str, tf.Tensor]) -> tf.Tensor:

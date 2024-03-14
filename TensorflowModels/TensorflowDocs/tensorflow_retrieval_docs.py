@@ -8,7 +8,7 @@ from typing import Dict, Text
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
-import keras.api._v2.keras as keras
+import keras
 import tensorflow_recommenders as tfrs
 from tensorflow.python.framework.tensor import Tensor
 
