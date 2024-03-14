@@ -1,8 +1,10 @@
+import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import warnings
 warnings.filterwarnings('ignore')
 import logging
 logging.disable(logging.CRITICAL)
+
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 import matplotlib.pyplot as plt 
@@ -16,12 +18,16 @@ import plotly.express as px
 from sklearn.impute import SimpleImputer
 import distinctipy
 import numpy as np
+import os
 
-
+"""
+This module contains functions that create embeddings, create and apply clusters, and visualize clustering results.
+"""
 
 def vectorize_items(news_text):
     """ 
     Vectorizes the news dataset via its abstract and title under both TF-IDF and BOW vectorization methods.
+    The result of the vectorization methods are two matrices containing the vectorized text.
     
     Args:
         news_text (pd.DataFrame) : The news dataset to vectorize.
@@ -31,17 +37,17 @@ def vectorize_items(news_text):
         tf_matrix : The dataset vectorized into a TF-IDF matrix
     """
 
+    # Fill in the NaN values with a " . " to avoid issues with vectorization.
     news_text['abstract'] = news_text['abstract'].fillna(' . ')
 
-    # Initialize vectorizers from scikit-learn
+    # Initialize vectorizers from scikit-learn with english stop words.
     bow_vectorizer = CountVectorizer(stop_words='english')
     tf_vectorizer = TfidfVectorizer(stop_words='english')
 
-    # Create bag of words and tf-idf matrices of the corpus
+    # Create bag of words and tf-idf matrices from all abstracts and titles.
     bow_matrix = bow_vectorizer.fit_transform(news_text['abstract'] + news_text['title'])
     tf_matrix = tf_vectorizer.fit_transform(news_text['abstract'] + news_text['title'])
     return bow_matrix, tf_matrix
-
 
 def create_UMAP_embeddings(dimension, data, metric='hellinger',n_neighbors=30,min_dist=0.0,n_epochs=None):
     """
@@ -91,30 +97,9 @@ def create_kmeans_labels(embeddings, n_clusters=10):
     Returns:
         labels () : Labels created by the HDBSCAN algorithm.
     """   
-    return cluster.KMeans(n_clusters = n_clusters, n_init='auto').fit_predict(embeddings)
+    return cluster.KMeans(n_clusters = n_clusters, n_init='auto', random_state=42).fit_predict(embeddings)
 
-def visualize_item_clusters(bow_embeddings, tf_embeddings, distance_metric : str, hdbscan_labels : list, kmeans_labels : list, cmap : str = 'plasma'):
-    """ 
-    Visualizes clustering results using matplotlib.
-    """
-    cmap = matplotlib.colormaps[cmap]
-    fig, axs = plt.subplots(nrows=2, ncols=2, figsize=(15,10))
-    # labels = [bow_hellinger_hdbscan_labels, bow_hellinger_kmeans_labels, tf_hellinger_hdbscan_labels, tf_hellinger_kmeans_labels]
-    axs = axs.flatten()
-    bow_hdb, tf_hdb = hdbscan_labels
-    bow_km, tf_km = kmeans_labels
-    axs[0].scatter(bow_embeddings[:, 0],bow_embeddings[:, 1], alpha = 0.5, s=1, c=bow_hdb, cmap=cmap)
-    axs[1].scatter(bow_embeddings[:, 0],bow_embeddings[:, 1], alpha = 0.5, s=1, c=bow_km, cmap=cmap)
-    axs[2].scatter(tf_embeddings[:, 0], tf_embeddings[:, 1], alpha = 0.5, s=1, c=tf_hdb, cmap=cmap)
-    axs[3].scatter(tf_embeddings[:, 0], tf_embeddings[:, 1], alpha = 0.5, s=1, c=tf_km, cmap=cmap)
-    fig.suptitle(f"{distance_metric} Distance Metric")
-    axs[0].set_title('BoW Embeddings - hdbscan')
-    axs[1].set_title('BoW Embeddings - kmeans')
-    axs[2].set_title('TF-IDF Embeddings - hdbscan')
-    axs[3].set_title('TF-IDF Embeddings - kmeans')
-    plt.tight_layout()
-
-def visualize_all_item_clusters(bow_embeddings, tf_embeddings, distance_metric : str, hdbscan_labels : list, kmeans_labels : list, cmap : str = 'plasma'):
+def visualize_all_item_clusters(bow_embeddings, tf_embeddings, distance_metric : str, hdbscan_labels : list, kmeans_labels : list, cmap : str = 'viridis'):
     """ 
     Visualizes clustering results of all vectorization methods and clustering algorithms using matplotlib.
 
@@ -129,9 +114,6 @@ def visualize_all_item_clusters(bow_embeddings, tf_embeddings, distance_metric :
     Returns:
         Creates and shows a chart of 2 rows and 4 columns containing scatter plots with clustering results.
     """
-    # Initialize the colormap.
-    cmap = matplotlib.colormaps[cmap]
-
     # Create the grid to put plots on.
     fig, axs = plt.subplots(nrows=2, ncols=4, figsize=(20,10))
     
@@ -165,41 +147,167 @@ def visualize_all_item_clusters(bow_embeddings, tf_embeddings, distance_metric :
     # Assign the plot a tight layout.
     plt.tight_layout()
 
-def item_cluster():
+def item_cluster_exploration():
+    """
+    Combines several clustering functions and the visualization function together to make parameter exploration for item clustering more efficient
+    and to improve readability of the clustering report.  
+    """
+    # Loading in the data for tf-idf and bag of words vectorization methods.
+    news_text = pd.read_csv('../MIND_large/csv/news.csv', index_col=0).set_index('news_id').drop(columns=['url','title_entities','abstract_entities'])
+
+    # Create our UMAP_embeddings for our vectorization types and distance metrics.
+    bow_matrix, tf_matrix = vectorize_items(news_text)
+    bow_embeddings = [create_UMAP_embeddings(2, bow_matrix, 'euclidean'), create_UMAP_embeddings(2, bow_matrix)]
+    tf_embeddings = [create_UMAP_embeddings(2, tf_matrix, 'euclidean'), create_UMAP_embeddings(2, tf_matrix)]
+    
+    # Apply kmeans and hdbscan clustering algorithms to our embeddings
+    embeddings = bow_embeddings + tf_embeddings
+
+    kmeans_labels = [create_kmeans_labels(SimpleImputer(strategy='mean').fit_transform(embeddings[index]), n_clusters=30) for index in [0, 2, 1, 3]]
+    hdbscan_labels = [create_hdbscan_labels(embeddings[index]) for index in [0, 2, 1, 3]]
+
+    # Plot clustering results
+    colors = distinctipy.get_colors(30)
+    cmap = distinctipy.get_colormap(colors)
+    try:
+        visualize_all_item_clusters(bow_embeddings, tf_embeddings, ['Euclidean', 'Hellinger'], hdbscan_labels, kmeans_labels, cmap=cmap)   
+    except:
+        print("CMAP did not work")
+        visualize_all_item_clusters(bow_embeddings, tf_embeddings, ['Euclidean', 'Hellinger'], hdbscan_labels, kmeans_labels, cmap=cmap)   
+
+def item_cluster(item_features, n_clusters, metric='hellinger', matrix_type='tf-idf', cluster_type = 'kmeans'):
+    """
+    Appends n_clusters clusters to the item features dataset with kmeans. Either will load in item embeddings or make them if not found.
+    """
+    # Standard filepath for the item embeddings.
+    fpath = "../MIND_large/embeddings/item_embeddings.npy"
+
+    # Read in the news and its text, then create the tf-idf matrix.
+    news_text = pd.read_csv('../MIND_large/csv/news.csv', index_col=0).set_index('news_id').drop(columns=['url','title_entities','abstract_entities'])
+    bow_matrix, tf_matrix = vectorize_items(news_text)
+
+    # Delete the dataset to save memory.
+    del news_text
+
+    # If the file for embeddings does not exist yet, create the embeddings and save them.
+    if not os.path.exists(fpath):
+        print("Item embeddings not found, creating now")
+        if matrix_type == 'tf-idf':
+            print("TF-IDF matrix type selected")
+            embeddings = create_UMAP_embeddings(2, tf_matrix, metric=metric)
+            np.save(fpath, embeddings)
+        elif matrix_type == 'bow':
+            embeddings = create_UMAP_embeddings(2, bow_matrix, metric=metric)
+            np.save(fpath, embeddings)                
+
+    # Otherwise load the embeddings.
+    else:
+        print("Item embeddings found, loading now")
+        embeddings = np.load(fpath)
+
+    # Create kmeans labels with the embeddings for the number of clusters specified in the arguments of item_cluster
+    if cluster_type == 'kmeans':
+        labels = create_kmeans_labels(SimpleImputer(strategy='mean').fit_transform(embeddings), n_clusters)
+    elif cluster_type == 'hdbscan':
+        labels = create_hdbscan_labels(SimpleImputer(strategy='mean').fit_transform(embeddings), n_clusters)
+
+    # Apply the new cluster labels and return the item features.
+    item_features['cluster'] = labels
+    return item_features
+
+def user_cluster_exploration():
     """
     Minimizes boilerplate within clustering report to improve readability. Combines all methods necessary to create
-    and then visualize exploratory item clustering results.
+    and then visualize exploratory user clustering results.
     """
-    import warnings
-    warnings.filterwarnings('ignore')
+    # Create lists of experimented on parameters to iterate through.
+    metrics = ['euclidean','cosine']
+    parameters = [(0.0, 30),(0.0, 50),(0.1, 30),(0.1,50)]
+    embeddings = []
 
-    if not os.path.exists('../MIND_large/csv/item_cluster0.npy'):
-        # Loading in the data for tf-idf and bag of words vectorization methods.
-        news_text = pd.read_csv('../MIND_large/csv/news.csv', index_col=0).set_index('news_id').drop(columns=['url','title_entities','abstract_entities'])
-
-        # Create our UMAP_embeddings for our vectorization types and distance metrics.
-        bow_matrix, tf_matrix = vectorize_items(news_text)
-        bow_embeddings = [create_UMAP_embeddings(2, bow_matrix, 'euclidean'), create_UMAP_embeddings(2, bow_matrix)]
-        tf_embeddings = [create_UMAP_embeddings(2, tf_matrix, 'euclidean'), create_UMAP_embeddings(2, tf_matrix)]
+    # Iterate over parameters loading in the related embeddings.
+    for metric in metrics:
+        for p_comb in parameters:
+            min_dist, n_neigh = p_comb
+            embeddings.append(np.load(f'../MIND_large/embeddings/user_embeddings_{metric}_{min_dist}_{n_neigh}.npy'))
         
-        # Apply kmeans and hdbscan clustering algorithms to our embeddings
-        embeddings = bow_embeddings + tf_embeddings
-        for num, embedding in enumerate(embeddings):
-            np.save(f'../MIND_large/csv/item_cluster_{num}.npy', embedding)
-        kmeans_labels = [create_kmeans_labels(SimpleImputer(strategy='mean').fit_transform(embeddings[index]), n_clusters=30) for index in [0, 2, 1, 3]]
-        hdbscan_labels = [create_hdbscan_labels(embeddings[index]) for index in [0, 2, 1, 3]]
+    # Create labels for each embedding and then plot the results.
+    kmeans_labels = [cluster.KMeans(n_clusters=50,n_init='auto').fit_predict(embedding) for embedding in embeddings]
+    plot_user_clusters_params(embeddings, kmeans_labels, metrics, parameters)
 
-        # Plot clustering results
-        colors = distinctipy.get_colors(50)
-        visualize_all_item_clusters(bow_embeddings, tf_embeddings, ['Euclidean', 'Hellinger'], hdbscan_labels, kmeans_labels, cmap='viridis')   
+def plot_user_clusters_params(embeddings, kmeans, distance_metric, params):
+    """
+    Plots the results of exploration on umap parameters for user clustering.
 
-        cluster_labels = kmeans_labels[3]
-        news_text['labels'] = cluster_labels
-        news_text.to_csv('../MIND_large/csv/clustered_items.csv')
-
-    else:
-        pass
+    Args:
+        embeddings () : 
+        kmeans () :
+        distance_metric () : 
+        params () :
     
+    Returns:
+        ... 
+    """
+    colors = distinctipy.get_colors(50)
+    cmap = distinctipy.get_colormap(colors)
+
+    # Create the grid to put plots on.
+    fig, axs = plt.subplots(nrows=2, ncols=4, figsize=(20,10))
+    
+    # Flatten the axes for easier list indexing.
+    axs = axs.flatten()
+
+    # Unpack the labels from the lists.
+    eu_030_km, eu_050_km, eu_130_km, eu_150_km, cos_030_km, cos_050_km, cos_130_km, cos_150_km = kmeans
+    
+    # Create euclidean distance metric scatterplots assigned to the top row.
+    axs[0].scatter(embeddings[0][:, 0],embeddings[0][:, 1], alpha = 0.5, s=1, c=eu_030_km, cmap=cmap)
+    axs[1].scatter(embeddings[1][:, 0],embeddings[1][:, 1], alpha = 0.5, s=1, c=eu_050_km, cmap=cmap)
+    axs[2].scatter(embeddings[2][:, 0],embeddings[2][:, 1], alpha = 0.5, s=1, c=eu_130_km, cmap=cmap)
+    axs[3].scatter(embeddings[3][:, 0],embeddings[3][:, 1], alpha = 0.5, s=1, c=eu_150_km, cmap=cmap)
+
+    axs[0].set_title(f'{distance_metric[0]}-{" ".join(map(str, params[0]))}')
+    axs[1].set_title(f'{distance_metric[0]}-{" ".join(map(str, params[1]))}')
+    axs[2].set_title(f'{distance_metric[0]}-{" ".join(map(str, params[2]))}')
+    axs[3].set_title(f'{distance_metric[0]}-{" ".join(map(str, params[3]))}')
+
+    axs[4].scatter(embeddings[3][:, 0],embeddings[3][:, 1], alpha = 0.5, s=1, c=cos_030_km, cmap=cmap)
+    axs[5].scatter(embeddings[4][:, 0],embeddings[4][:, 1], alpha = 0.5, s=1, c=cos_050_km, cmap=cmap)
+    axs[6].scatter(embeddings[5][:, 0],embeddings[5][:, 1], alpha = 0.5, s=1, c=cos_130_km, cmap=cmap)
+    axs[7].scatter(embeddings[6][:, 0],embeddings[6][:, 1], alpha = 0.5, s=1, c=cos_150_km, cmap=cmap)
+
+    axs[4].set_title(f'{distance_metric[1]}-{" ".join(map(str, params[0]))}')
+    axs[5].set_title(f'{distance_metric[1]}-{" ".join(map(str, params[1]))}')
+    axs[6].set_title(f'{distance_metric[1]}-{" ".join(map(str, params[2]))}')
+    axs[7].set_title(f'{distance_metric[1]}-{" ".join(map(str, params[3]))}')
+
+def user_cluster(features, n_clusters=50, metric='euclidean', min_dist=0.1,n_neigh=50):
+    """
+    Applies clustering and returns new features dataframe with specified KNN clusters. Can also create UMAP embeddings to apply to 
+    features if they are not already present in the users MIND_large directory. All applicable UMAP parameters are also availible as 
+    parameters.
+    """
+
+    # Initialize the path that currently points to or will point to user embeddings.
+    path = "../MIND_large/embeddings/user_embeddings.npy"
+
+    # If the path does not exist yet, make the embeddings and save them. Otherwise load them.
+    if not os.path.exists(path):
+        print("User embeddings not found, creating now")
+        embeddings = create_UMAP_embeddings(2, features.iloc[:,1:], metric, min_dist=min_dist, n_neigh=n_neigh)
+        np.save(path, embeddings)
+    else:
+        print("User embeddings found, loading now")
+        embeddings = np.load(path)
+    
+    # Create the kmeans labels and append them to the features.
+    labels = create_kmeans_labels(embeddings, n_clusters=n_clusters)
+    features_new = features.copy()
+    features_new["cluster"] = labels
+
+    # Return the features.
+    return features_new
+
 def chart(trans):
     #--------------------------------------------------------------------------#
     # This section is not mandatory as its purpose is to sort the data by label 
@@ -244,65 +352,6 @@ def chart(trans):
     fig.show()
 
 
-### Parameter explanation for UMAP
-# reducer = umap.UMAP(
-#                n_neighbors=100, # default 15, The size of local neighborhood (in terms of number of neighboring sample points) used for manifold approximation.
-#                n_components=3, # default 2, The dimension of the space to embed into.
-#                metric='euclidean', # default 'euclidean', The metric to use to compute distances in high dimensional space.
-#                n_epochs=1000, # default None, The number of training epochs to be used in optimizing the low dimensional embedding. Larger values result in more accurate embeddings. 
-#                learning_rate=1.0, # default 1.0, The initial learning rate for the embedding optimization.
-#                init='spectral', # default 'spectral', How to initialize the low dimensional embedding. Options are: {'spectral', 'random', A numpy array of initial embedding positions}.
-#                min_dist=0.1, # default 0.1, The effective minimum distance between embedded points.
-#                spread=1.0, # default 1.0, The effective scale of embedded points. In combination with ``min_dist`` this determines how clustered/clumped the embedded points are.
-#                low_memory=False, # default False, For some datasets the nearest neighbor computation can consume a lot of memory. If you find that UMAP is failing due to memory constraints consider setting this option to True.
-#                set_op_mix_ratio=1.0, # default 1.0, The value of this parameter should be between 0.0 and 1.0; a value of 1.0 will use a pure fuzzy union, while 0.0 will use a pure fuzzy intersection.
-#                local_connectivity=1, # default 1, The local connectivity required -- i.e. the number of nearest neighbors that should be assumed to be connected at a local level.
-#                repulsion_strength=1.0, # default 1.0, Weighting applied to negative samples in low dimensional embedding optimization.
-#                negative_sample_rate=5, # default 5, Increasing this value will result in greater repulsive force being applied, greater optimization cost, but slightly more accuracy.
-#                transform_queue_size=4.0, # default 4.0, Larger values will result in slower performance but more accurate nearest neighbor evaluation.
-#                a=None, # default None, More specific parameters controlling the embedding. If None these values are set automatically as determined by ``min_dist`` and ``spread``.
-#                b=None, # default None, More specific parameters controlling the embedding. If None these values are set automatically as determined by ``min_dist`` and ``spread``.
-#                random_state=42, # default: None, If int, random_state is the seed used by the random number generator;
-#                metric_kwds=None, # default None) Arguments to pass on to the metric, such as the ``p`` value for Minkowski distance.
-#                angular_rp_forest=False, # default False, Whether to use an angular random projection forest to initialise the approximate nearest neighbor search.
-#                target_n_neighbors=-1, # default -1, The number of nearest neighbors to use to construct the target simplcial set. If set to -1 use the ``n_neighbors`` value.
-#                #target_metric='categorical', # default 'categorical', The metric used to measure distance for a target array is using supervised dimension reduction. By default this is 'categorical' which will measure distance in terms of whether categories match or are different. 
-#                #target_metric_kwds=None, # dict, default None, Keyword argument to pass to the target metric when performing supervised dimension reduction. If None then no arguments are passed on.
-#                #target_weight=0.5, # default 0.5, weighting factor between data topology and target topology.
-#                transform_seed=42, # default 42, Random seed used for the stochastic aspects of the transform operation.
-#                verbose=False, # default False, Controls verbosity of logging.
-#                unique=False, # default False, Controls if the rows of your data should be uniqued before being embedded. 
-#               )
-def plot_user_clusters_params(embeddings, kmeans, distance_metric, params):
-    colors = distinctipy.get_colors(50)
-    cmap = distinctipy.get_colormap(colors)
 
-    # Create the grid to put plots on.
-    fig, axs = plt.subplots(nrows=2, ncols=4, figsize=(20,10))
-    
-    # Flatten the axes for easier list indexing.
-    axs = axs.flatten()
-
-    # Unpack the labels from the lists.
-    eu_030_km, eu_050_km, eu_130_km, eu_150_km, cos_030_km, cos_050_km, cos_130_km, cos_150_km = kmeans
-    
-    # Create euclidean distance metric scatterplots assigned to the top row.
-    axs[0].scatter(embeddings[0][:, 0],embeddings[0][:, 1], alpha = 0.5, s=1, c=eu_030_km, cmap=cmap)
-    axs[1].scatter(embeddings[1][:, 0],embeddings[1][:, 1], alpha = 0.5, s=1, c=eu_050_km, cmap=cmap)
-    axs[2].scatter(embeddings[2][:, 0],embeddings[2][:, 1], alpha = 0.5, s=1, c=eu_130_km, cmap=cmap)
-    axs[3].scatter(embeddings[3][:, 0],embeddings[3][:, 1], alpha = 0.5, s=1, c=eu_150_km, cmap=cmap)
-
-    axs[0].set_title(f'{distance_metric[0]}-{" ".join(map(str, params[0]))}')
-    axs[1].set_title(f'{distance_metric[0]}-{" ".join(map(str, params[1]))}')
-    axs[2].set_title(f'{distance_metric[0]}-{" ".join(map(str, params[2]))}')
-    axs[3].set_title(f'{distance_metric[0]}-{" ".join(map(str, params[3]))}')
-
-    axs[4].scatter(embeddings[3][:, 0],embeddings[3][:, 1], alpha = 0.5, s=1, c=cos_030_km, cmap=cmap)
-    axs[5].scatter(embeddings[4][:, 0],embeddings[4][:, 1], alpha = 0.5, s=1, c=cos_050_km, cmap=cmap)
-    axs[6].scatter(embeddings[5][:, 0],embeddings[5][:, 1], alpha = 0.5, s=1, c=cos_130_km, cmap=cmap)
-    axs[7].scatter(embeddings[6][:, 0],embeddings[6][:, 1], alpha = 0.5, s=1, c=cos_150_km, cmap=cmap)
-
-    axs[4].set_title(f'{distance_metric[1]}-{" ".join(map(str, params[0]))}')
-    axs[5].set_title(f'{distance_metric[1]}-{" ".join(map(str, params[1]))}')
-    axs[6].set_title(f'{distance_metric[1]}-{" ".join(map(str, params[2]))}')
-    axs[7].set_title(f'{distance_metric[1]}-{" ".join(map(str, params[3]))}')
+# might want to consider making user features with sub category as well and have it match the item features? 
+# that way we could inform the weights by sub-category and category and more, yes I think thats good
