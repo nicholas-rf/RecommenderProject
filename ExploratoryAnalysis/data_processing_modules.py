@@ -12,7 +12,7 @@ This module contains several methods used for feature extraction and to process 
 def data_to_csv(behaviors : bool, fpath : str) -> None:
     """
     Takes a tab seperated variable file from the MIND dataset, adds columns to it, and exports it as a CSV.
-    This only needs to be ran at the start of the project. 
+    This is only ran once to set up the CSVs that will be used throughout the rest of the project.
 
     Args:
         behaviors (bool) : A boolean which signifies that the incomming tsv is either the behaviors tsv or the news tsv.
@@ -84,7 +84,7 @@ def create_popularity_dfs(news_frame : pd.DataFrame, behaviors_frame : pd.DataFr
     category_popularity_history = {category: 0 for category in pd.unique(copynews['category'])}
     user_ids = []
 
-    # Iterate through every row of the columns history and impressions in the dataframe.
+    # Iterate through every row of the columns history and impressions in the dataframe. Tqdm is used here to show progress of iteration.
     for user_id, history, impressions in tqdm(zip(behaviors_frame['user_id'], behaviors_frame['history'], behaviors_frame['impressions']),
                         total=len(behaviors_frame['user_id']), desc="Iterating Over Behaviors"):
         # If our history is not a NaN.
@@ -123,12 +123,12 @@ def create_popularity_dfs(news_frame : pd.DataFrame, behaviors_frame : pd.DataFr
             pd.DataFrame(data=article_popularity_history, columns=['article', 'popularity_history']),
             pd.DataFrame(data=article_popularity_impression, columns=['article', 'popularity_impression'])) 
 
-def create_popularity_csvs(news : pd.DataFrame, behaviors : pd.DataFrame, small : bool=True) -> None:
+def create_popularity_csvs(news : pd.DataFrame, behaviors : pd.DataFrame) -> None:
     """
     Extracts popularity for categories and articles from user history and impressions then exports them to csvs.
-    This is done by using the eda_modules.create_popularity_dfs which creates four separate dataframes which represent article
+    This is done by using create_popularity_dfs which creates four separate dataframes which represent article
     popularity and category popularity. The article and category pairs are then concatenated and exported for usage within
-    the exploratory data analysis report.
+    exploratory data analysis and news feature extraction.
     
     Args:
         news (pd.DataFrame) : The dataframe containing the data from the news csv.
@@ -138,7 +138,7 @@ def create_popularity_csvs(news : pd.DataFrame, behaviors : pd.DataFrame, small 
         None
     """
 
-    # Create the dataframes with information about how populary each category is.
+    # Create the dataframes with information about how popular each category is.
     print("Creating Popularity Counts")
     cat_pop_hist, cat_pop_imp, art_pop_hist, art_pop_imp = create_popularity_dfs(news, behaviors)
 
@@ -168,12 +168,8 @@ def create_popularity_csvs(news : pd.DataFrame, behaviors : pd.DataFrame, small 
     
     # Output the CSVs to the respective folder.
     print("Outputting To Csv")
-    if small:
-        news.to_csv("../MIND_small/csv/news_with_popularity.csv")
-        categories.to_csv('../MIND_small/csv/category_with_popularity.csv')
-    else:
-        news.to_csv("../MIND_large/csv/news_with_popularity.csv")
-        categories.to_csv('../MIND_large/csv/category_with_popularity.csv')
+    news.to_csv("../MIND_large/csv/news_with_popularity.csv")
+    categories.to_csv('../MIND_large/csv/category_with_popularity.csv')
         
 def decompose_interactions(news : pd.DataFrame, behaviors : pd.DataFrame) -> pd.DataFrame:
     """
@@ -195,12 +191,12 @@ def decompose_interactions(news : pd.DataFrame, behaviors : pd.DataFrame) -> pd.
     copynews = news.copy()
     copynews = copynews.set_index('news_id')
     
-    # Creating an update_data function to better manage boilerplate.
+    # Creating an update_data function for convenience.
     def update_data(data : dict, user_id : str, time_stamp : str, news_id : str, interaction_type : str, score : int) -> dict:
         """
         Updates the data dictionary with a users interaciton data.
         """
-        # Updating all relevant keys in the dictionary
+        # Updating all relevant keys in the dictionary.
         data['user_id'].append(user_id)
         data['time'].append(time_stamp)
         data['news_id'].append(news_id)
@@ -212,20 +208,26 @@ def decompose_interactions(news : pd.DataFrame, behaviors : pd.DataFrame) -> pd.
         data['score'].append(score)
         return data
 
-    # Initializing a counter so that the number of new rows can be controlled for easier testing and processing.
+    # Initialize a list to store user IDs as a way of checking if a users history has already been read into the dataset or not.
     seen = []
-    # Iterating through all relevant information.
+
+    # Iterating through all relevant information. Again we use tqdm to output a progress bar.
     print('Starting loop')
     for user_id, history, impressions, time_stamp in tqdm(zip(behaviors['user_id'], behaviors['history'], behaviors['impressions'], behaviors['hour']), total=len(behaviors['user_id'])):
 
-        # Iterating through all news ids in the history and impressions.
+        # Iterate over the users history if they have not been seen yet.
         if user_id not in seen:
             if type(history) != float:
                 for news_id in history.split():
                     data = update_data(data, user_id, time_stamp, news_id, 'history', 1)
-
+                
+                # Add the user ID to the seen list.
                 seen.append(user_id)
+        
+        # Iterate over the users impressions.
         for impression in impressions.split():
+
+            # Clean the impression and then update the data accordingly.
             impression_result = clean_impression(impression)
             if impression_result['score'] == 1:
                 data = update_data(data, user_id, time_stamp, impression_result['article_ID'], 'impression', 1)   
@@ -233,15 +235,19 @@ def decompose_interactions(news : pd.DataFrame, behaviors : pd.DataFrame) -> pd.
             else:
                 data = update_data(data, user_id, time_stamp, impression_result['article_ID'], 'impression', 0)   
 
-    # Returning a dataframe with the dictionary as its input.
+    # Returning a dataframe with the dictionary as the data.
     return pd.DataFrame(data=data)
 
 def create_interaction_counts(behaviors):
     """
-    Creates interaction counts dataframes for usage in timestamp analysis. What happens here is that news, behaviors and categories with
-    popularity is loaded in, then get_interaction_popularity goes through all impressions getting popularity counts for every interaction.
-    These popularity counts are still attached to a time stamp meaning we can aggregate by a binned time stamp and use the results in 
-    temporal popularity analysis.
+    Iterates over the behaviors data to extract the category counts for each interaction in order to analyze popularity of categories at different times of day.
+    News, behaviors and categories with popularity are loaded in and then category popularity counts in both user history and impressions are extracted.
+
+    Args:
+        behaviors (pd.DataFrame) : The base behaviors dataset.
+    
+    Returns:
+        None : Instead of returning a value this function stores the output as a csv. 
     """
     
     # Load in the datasets and set the index of the news dataset to news id    
@@ -296,12 +302,16 @@ def create_interaction_counts(behaviors):
 
         return category_popularity_history if history else category_popularity_impression
 
-    print('starting history popularity')
+    # Get popularity counts for user histories, since user histories are global this is more an indicator of users with what history are interacting at what time.
+    print('Starting history popularity')
     behaviors[category_popularity.columns.to_list()[1:]] = behaviors.apply(lambda row : get_interaction_popularity(row, True), axis='columns', result_type='expand')
     behaviors.rename(columns={column : column + "_history" for column in category_popularity.columns.to_list()}, inplace=True)
-    print('starting impression popularity')
+
+    # Get popularity counts for user impressions.
+    print('Starting impression popularity')
     behaviors[category_popularity.columns.to_list()[1:]] = behaviors.apply(lambda row : get_interaction_popularity(row, False), axis='columns', result_type='expand')
     behaviors.rename(columns={column : column + "_impression" for column in category_popularity.columns.to_list()}, inplace=True)
+
     behaviors.to_csv("../MIND_large/csv/behaviors_with_individual_counts.csv")
 
 def modify_hourly(behaviors):
@@ -316,6 +326,8 @@ def modify_hourly(behaviors):
     """
     # Can be printed to determine the minimum and maximum timeframe for the data.
     # times = [behaviors['time'].max(), behaviors['time'].min()]
+
+    # Make the time column into a datetime object.
     behaviors['time'] = pd.to_datetime(behaviors['time'])
 
     # going to want to set it so that time is only representing the date of the week and not hours, so cut_points can join the date with 00:00:00 for hourly predictions
@@ -440,8 +452,8 @@ def create_user_features(df):
     # Scale the category preferences.
     category_sums = user[cat_columns[1:]].sum(axis=1)
     sub_category_sums = user[sub_cat_columns].sum(axis=1)
-    user[cat_columns[1:]] = user[cat_columns[1:]].div(category_sums, axis=0)
-    user[sub_cat_columns] = user[sub_cat_columns].div(sub_category_sums, axis=0)
+    user[cat_columns[1:]] = user[cat_columns[1:]].div(category_sums, axis=0).fillna(0)
+    user[sub_cat_columns] = user[sub_cat_columns].div(sub_category_sums, axis=0).fillna(0)
 
     # Obtain the median hour of interaction for users and append it to the user feature matrix.
     medians = df.groupby("user_id")["time"].apply(np.median).reset_index()
@@ -467,10 +479,15 @@ def create_item_features():
     news.drop(columns = ['popularity_history', 'popularity_impression', 'url', 'title_entities', 'abstract_entities'], inplace=True)
 
     # Dummy code the category variables sub_category and category, then concatenate the result to the item features.
-    dummy_coded_categories = pd.get_dummies(news.drop(columns=['popularity', 'news_id', 'title', 'abstract']), dtype='float')
-    drop_cols = ['sub_category_' + col for col in ['sports', 'video', 'games', 'lifestyle', 'tv', 'news']]
+    dummy_coded_categories = pd.get_dummies(news.drop(columns=['popularity', 'news_id', 'title', 'abstract']), dtype='float', prefix_sep="<sep>")
+    drop_cols = ['sub_category<sep>' + col for col in ['travel', 'sports', 'video', 'games', 'lifestyle', 'tv', 'news']]
     dummy_coded_categories.drop(columns=drop_cols, inplace=True)
-    dummy_coded_categories.columns = [column.split('_')[-1] for column in dummy_coded_categories.columns]
+    dummy_coded_categories.columns = [column.split('<sep>')[-1] for column in dummy_coded_categories.columns]
+
+    # Remove columns that are not included in user features, meaning in our dataset no user has interacted with them. 
+    dummy_coded_categories = dummy_coded_categories.drop(columns=['autoslosangeles', 'autosmidsize','causes-poverty','finance-startinvesting','internationaltravel',
+                                        'lifestylewhatshot','newsother','relationships','traveltrivia','tv-golden-globes-video','ustravel']) 
+
     item_features = pd.concat([news.drop(columns=['category', 'sub_category']), dummy_coded_categories], axis=1)
 
     # Return the item features.
@@ -503,7 +520,7 @@ def check_duplicates(df):
 
 def add_embeddings():
     """
-    Something to add embeddings to item features, potential use but other stuff to do
+    Something to add embeddings to item features, potential use but other stuff to do before this
     """
     # if umap_dim != 0:
 
