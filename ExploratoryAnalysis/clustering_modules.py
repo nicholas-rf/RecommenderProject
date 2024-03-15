@@ -294,7 +294,7 @@ def user_cluster(features, n_clusters=50, metric='euclidean', min_dist=0.1,n_nei
     # If the path does not exist yet, make the embeddings and save them. Otherwise load them.
     if not os.path.exists(path):
         print("User embeddings not found, creating now")
-        embeddings = create_UMAP_embeddings(2, features.iloc[:,1:], metric, min_dist=min_dist, n_neigh=n_neigh)
+        embeddings = create_UMAP_embeddings(2, features.iloc[:,1:], metric, min_dist=min_dist, n_neighbors=n_neigh)
         np.save(path, embeddings)
     else:
         print("User embeddings found, loading now")

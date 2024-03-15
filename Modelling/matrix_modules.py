@@ -27,12 +27,12 @@ def load_dataset_for_matrix():
     dataset = load_in_tensorflow_full()
 
     # Load in the clustered news and users datasets
-    news = pd.read_csv('../MIND_large/csv/clustered_items.csv')
+    news = pd.read_csv('../MIND_large/csv/item_features.csv')
     all_ratings = dataset.groupby('user_id')['news_id'].apply(list).reset_index()
     scores = dataset.groupby('user_id')['score'].apply(list).reset_index()
     all_ratings['scores'] = scores['score']
 
-    user_clustered = pd.read_csv('../MIND_large/csv/full_user_clusters.csv') # needs to be updated for the train test split as well :D 
+    user_clustered = pd.read_csv('../MIND_large/csv/user_features.csv') # needs to be updated for the train test split as well :D 
     
     return all_ratings, news, user_clustered
 
