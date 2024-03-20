@@ -3,7 +3,7 @@ import numpy as np
 from tqdm import tqdm
 import sys
 sys.path.append('/home/jovyan/work/')
-import ExploratoryAnalysis.clustering_modules as cm
+import ExploratoryAnalysis.clustering as cm
 
 def load_in_tensorflow_full():
     """
@@ -19,8 +19,14 @@ def load_in_tensorflow_full():
 def load_dataset_for_matrix():
     """
     Loads in the full Tensorflow compatible dataset with clustered news and users datasets. 
-    It returns all_ratings which is the tensorflow compatible dataset which is a modified version of the tensorflow
-    compatible dataset for matrix creation, the news dataset with cluster labels, and the complete users clustered dataset. 
+    More specifically the Tensorflow compatible dataset grouped by user ids containing lists of scores and seen news. 
+    
+    Args:
+        None 
+
+    Returns:
+        (pd.DataFrame, pd.DataFrame, pd.DataFrame) : Compatible dataset for matrix creation, the news dataset with cluster labels, 
+            and the complete users clustered dataset. 
     """
     
     # Load in the full Tensorflow compatible dataset.
@@ -60,12 +66,15 @@ def create_item_cluster_mat(ratings_df, news, num_users, num_clusters, isALS=Fal
             column : row values and row : column values if isALS is true. 
         If isALS is False,
         np.column_stack(list(matrix.values())) (np.2darray) : The ratings matrix.
+        np.column_stack(list(d_mat.values())) (no.2darray) : The seen matrix which represents D for more efficient GD.
         
     """
     # Initialize the hash map that will create the matrix as a list of np zero arrays for each cluster and the hashmap of item clusters .
     item_clusters = {item : cluster for item, cluster in zip(news['news_id'], news['cluster'])}
+
     matrix = {cluster : np.full(num_users, 0, dtype='int16') for cluster in range(num_clusters)} 
-    
+    d_mat =  {cluster : np.full(num_users, 0, dtype='int16') for cluster in range(num_clusters)}
+
     if isALS:
         # Initialize the cluster hashmap, which is used to track an item index and all row indices that engage with that item.
         cluster_idx = {cluster : set() for cluster in range(num_clusters)}
@@ -86,6 +95,7 @@ def create_item_cluster_mat(ratings_df, news, num_users, num_clusters, isALS=Fal
             # If the rating is not zero, add a 1 to the cluster of the article.
             if num != 0:    
                 matrix[item_clusters[news_id]][counter] += 1
+                d_mat[item_clusters[news_id]][counter] = 1
                 
                 # If we are using ALS, add relevant indices to the hashmaps.
                 if isALS:
@@ -94,10 +104,8 @@ def create_item_cluster_mat(ratings_df, news, num_users, num_clusters, isALS=Fal
         counter += 1
 
     # If we are not making hash maps for ALS, then only return the matrix. Otherwise return the matrix and hash maps.
-    if not isALS:
-        return np.column_stack(list(matrix.values()))
-    else:
-        return np.column_stack(list(matrix.values())), cluster_idx, user_idx
+
+    return np.column_stack(list(matrix.values())), np.column_stack(list(d_mat.values())), cluster_idx, user_idx
 
 def create_user_cluster_mat(ratings_df, news, user_clustered, num_user_clusters, isALS=False):
     """
@@ -123,9 +131,11 @@ def create_user_cluster_mat(ratings_df, news, user_clustered, num_user_clusters,
             column : row values and row : column values if isALS is true. 
         If isALS is False,
         np.column_stack(list(matrix.values())) (np.2darray) : The ratings matrix.
+        np.column_stack(list(d_mat.values())) (no.2darray) : The seen matrix which represents D for more efficient GD.
     """
     # Initialize the hash map that will create the matrix as a list of np zero arrays for each news_id and the hashmap of user clusters.
     matrix = {news_id : np.full(num_user_clusters, 0, dtype='int8') for news_id in news['news_id']}
+    d_mat =  {news_id : np.full(num_user_clusters, 0, dtype='int8') for news_id in news['news_id']}
     user_clusters = {user : cluster for user, cluster in zip(user_clustered['user_id'], user_clustered['cluster'])}
     
     if isALS:
@@ -150,7 +160,8 @@ def create_user_cluster_mat(ratings_df, news, user_clustered, num_user_clusters,
             if num != 0:
                 # Access the column of the matrix, and then find the index in that column for that users cluster, then increment by 1.
                 matrix[news_id][cluster] += 1 
-                
+                d_mat[news_id][cluster] = 1
+
                 # If we are using ALS, add the relevant indices to the hash map.
                 if isALS:
                     # Add the corresponding cluster number to the column index for the news id.
@@ -160,11 +171,9 @@ def create_user_cluster_mat(ratings_df, news, user_clustered, num_user_clusters,
                     cluster_idx[cluster].add(item_lookup[news_id])
 
     # If we are not making hash maps for ALS, then only return the matrix. Otherwise return the matrix and hash maps.                      
-    if not isALS:
-        return np.column_stack(list(matrix.values()))
-    else:
-        return np.column_stack(list(matrix.values())), item_idx, cluster_idx
-
+    
+    return np.column_stack(list(matrix.values())), np.column_stack(list(d_mat.values())), item_idx, cluster_idx
+    
 def get_features(user_features, item_features, userClustering=False, umapDim=2):
     """
     Uses UMAP to reduce the dimension of user and item features to a dimension specified by umapDim. By reducing the dimension
@@ -205,17 +214,17 @@ def get_features(user_features, item_features, userClustering=False, umapDim=2):
 
     return user_features, item_features
 
-def rmse(X, Y):
+def rmse(X):
     """
-    Performes the RMSE calculation on two matrices X and Y, which is used in SGD and ALS implementations for
-    creating the predicted ratings matrix.
+    Computes root-mean-square-error, ignoring nan values
     """
     mask = X != 0
-    return np.sqrt(np.nanmean((X[mask]-Y[mask])**2))
+    return np.sqrt(np.nanmean((X[mask])**2))
 
 def max_update(X, Y, relative=True):
     """
-    Performs calculations to determine how large of a difference between two matrices is after an update via either ALS or SGD.    
+    Compute elementwise maximum update
+    
     parameters:
     - X, Y: numpy arrays or vectors
     - relative: [True] compute relative magnitudes
@@ -231,7 +240,74 @@ def max_update(X, Y, relative=True):
             
     return np.linalg.norm(updates.ravel(), np.inf)
 
-def alternating_least_squares(U, V, R, user_map, item_map, max_iterations=10, lambda_reg=0.01, threshhold = 1e-3):
+def vectorized_gradient_descent(R, U, V, D, rate=0.00001,max_iterations=10,lam=5, diff_threshold=1e-3):
+    """
+    Performes vectorized gradient descent to make ratings predictions for the incomplete user-item matrix. Compared to standard gradient descent, 
+    vectorized gradient descent further improves upon update formulae by using matrices Gamma and D to operate on U and V for observed ratings 
+    instead of iterating over all observed indices.
+
+    Args:
+        R (np.ndarray) : The user-item ratings matrix R.
+        U (np.ndarray) : The user latent factor matrix U.
+        V (np.ndarray) : The item latent factor matrix V.
+        D (np.ndarray) : The observed interaction matrix D.
+        rate (float) : The learning rate for the gradient descent. Here we need to use small values like 0.00001 due to 
+            the numerical instability of our data brought on by clustering.
+        max_iterations (int) : The number of iterations to run gradient descent for.
+        lam (float) : The regularization parameter which adds a penalty to vectors with large magnitude.
+        diff_threshold (float) : The threshold to stop iterating over the data with to avoid computational innefficiency.
+    """
+
+    # Create initial Uold and Vold for calculating max updates.
+    Uold = np.zeros_like(U)
+    Vold = np.zeros_like(V)
+    
+    # Initialize empty lists to track error and update.
+    error_update = []
+    track_update = []
+
+    # Perform gradient descent for the number of iterations as specified by max_iterations.
+    for t in tqdm(range(1, max_iterations+1), total=max_iterations, desc='Running Optimized Gradient Descent'): # , total=max_iterations, desc="Starting descent"):
+
+        # Create Gamma as the residuals matrix.
+        Gamma = R - (U @ V.T)
+
+        # Take the hadamard product of gamma and matrix D to get a matrix of all observed residuals.
+        observed_errors = np.multiply(Gamma, D)
+
+        # Update the entire matrix U with vectorized operations.
+        U += rate * (observed_errors @ V - lam * U)
+        
+        # Find Gamma and observed_errors with the updated U.    
+        Gamma = R-(U @ V.T)
+        observed_errors = np.multiply(Gamma, D)
+
+        # Update the entire matrix V with vectorized operations.
+        V += rate * (observed_errors.T @ U - lam * V)
+
+        observed_errors = np.multiply(Gamma, D)
+
+        # Update the update tracking.    
+        track_update += [
+            max(max_update(U, Uold), max_update(V, Vold))
+        ]
+
+        # If our most recent update is lower than our difference threshold, return the Old matrices and information arrays.
+        if track_update[-1] < diff_threshold:
+            print("Threshold reached, stopping descent")
+            return Uold, Vold , error_update, track_update
+
+        # Update Uold and Vold.
+        Uold = U.copy() 
+        Vold = V.copy()
+
+        # Update the error.
+        error_update += [rmse(observed_errors)]
+    
+    # Return the new U and V and update lists. 
+    return U, V , error_update, track_update
+
+def alternating_least_squares(U, V, R, user_map, item_map, max_iterations=10, lambda_reg=0.01, diff_threshold = 1e-3):
     """
     Takes in the ratings matrix, user and item matrices, and performes alternating least squares optimization for iterations
     determined by max_iterations regularized by lambda_reg.
@@ -255,8 +331,8 @@ def alternating_least_squares(U, V, R, user_map, item_map, max_iterations=10, la
     Vold = np.zeros_like(V)
 
     # Initialize RMSE and Max update lists for tracking
-    track_error = [{'iteration' : 0, 'rmse' : rmse(R, U.T @ V)}]
-    track_update = [{'iteration' : 0, 'max_update' : max(max_update(U, Uold), max_update(V, Vold))}]
+    track_error = [rmse(R - U.T @ V)]
+    track_update = [max(max_update(U, Uold), max_update(V, Vold))]
 
     # Initialize k and the number of columns in each matrix
     k, u_cols = U.shape
@@ -285,8 +361,16 @@ def alternating_least_squares(U, V, R, user_map, item_map, max_iterations=10, la
             # Update the jth vector of V
             V[:, j] = np.linalg.inv((user_features @ user_features.T) + k_In) @ (ratings_row @ user_features.T)
         
+        
+        
         # Calculate the error and maximum update for this iteration
-        track_error += [{'iteration' : iteration, 'rmse' : rmse(R, U.T @ V)}]
-        track_update += [{'iteration' : iteration, 'max_update' : max(max_update(U, Uold), max_update(V, Vold))}]
+        track_error += [rmse(R - (U.T @ V))]
+        track_update += [max(max_update(U, Uold), max_update(V, Vold))]
+        Uold = U.copy()
+        Vold = V.copy()
+        # If our most recent update is lower than our difference threshold, return the Old matrices and information arrays.
+        if track_update[-1] < diff_threshold:
+            print("Threshold reached, stopping alternating squares")
+            return Uold, Vold , track_error, track_update
 
     return U, V, track_error, track_update
