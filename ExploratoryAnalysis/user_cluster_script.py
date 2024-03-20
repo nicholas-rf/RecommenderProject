@@ -1,6 +1,6 @@
 import pandas as pd 
 import numpy as np
-from clustering_modules import create_UMAP_embeddings
+from ExploratoryAnalysis.clustering import create_UMAP_embeddings
 
 """
 This script is ran to generate and save several different 
