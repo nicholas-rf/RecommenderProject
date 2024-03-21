@@ -6,9 +6,14 @@ import matplotlib.axes
 import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
+import os
+
+# Path handling
+module_dir = os.path.dirname(__file__) 
+data_path = os.path.join(module_dir, '../MIND_large/csv')
 
 """
-Contains modules for exploratory data analysis and transformations specific to the microsoft MIND dataset.
+Contains functions for data visualizations in the exploratory data analysis report and maybe more? 
 """
 
 ### News Dataset Methods ### 
@@ -69,19 +74,19 @@ def plot_category_popularity():
         None
     """
     # Melt and then sort the data.
-    category_popularity = pd.read_csv('../MIND_large/csv/category_with_popularity.csv').drop(columns=['Unnamed: 0'])
+    category_popularity = pd.read_csv(data_path + '/category_with_popularity.csv').drop(columns=['Unnamed: 0'])
     category_popularity_long = category_popularity.melt(id_vars='popularity_type', value_vars=category_popularity.columns, value_name='popularity')
     category_popularity_long_sorted = category_popularity_long.sort_values(by=['popularity_type', 'popularity'], ascending=[True, False])
-    
+
     # Create a seaborn FacetGrid for the visualization.
-    g = sns.FacetGrid(category_popularity_long_sorted, col='popularity_type', sharex=False, height=5, aspect=1, hue='variable')
+    g = sns.FacetGrid(data = category_popularity_long_sorted, col='popularity_type', sharex=False, height=5, aspect=1, hue='variable')
 
     # Apply a barplot to each facet and set the labels and titles.
     g.map(sns.barplot, 'popularity','variable')
     g.set_axis_labels(x_var="Count of interactions", y_var='Categories')
     g.set_titles("User {col_name}")
     g.add_legend(title='Categories')
-
+    plt.savefig(data_path+"/cat_pop.png")
     plt.show()
 
 def plot_article_popularity():
@@ -95,12 +100,14 @@ def plot_article_popularity():
         None
     """
     # Melt and then sort the data.
-    article_popularity = pd.read_csv('../MIND_large/csv/news_with_popularity.csv', index_col=0)
+    article_popularity = pd.read_csv(data_path + '/news_with_popularity.csv', index_col=0)
     article_popularity['total'] = article_popularity['popularity_impression'] + article_popularity['popularity_history']
     article_popularity = article_popularity.sort_values(by='total', ascending=False).reset_index(drop=True)
+
     g = sns.lineplot(data=article_popularity['total'])
     plt.xlabel('Articles')
     plt.ylabel('Count of interactions')
+    plt.savefig(data_path+"/art_pop.png")
     plt.show()
 
 
@@ -139,80 +146,9 @@ def create_temporal_graphs(behaviors_with_counts : pd.DataFrame, history_counts)
     g.set_titles('User {col_name}')
     plt.show()
 
+def plot_both():
+    fig,ax = plt.subplots(1,3)
+    ax = ax.flatten()
 
-def check_temporal_clicks(dataframe):
-    # plots clickthrough rates throughout the day to analyze the affect that time has on clickthrough rates
-    """
-    Creates a data visualization of clickthrough rates throughout the day to analyze the affect that time has on clickthrough rates.
-
-    Args:
-        dataframe (pd.DataFrame) : A dataframe from which genres and subgenres can be extracted.  
-
-    Returns:
-        temporal_chart (sns.something) : A sns plot object containing the number of clicks for a given time?
-    """
-    # maybe want to group by time and then sum the amount of clicks for each time and do a simple line chart 
-
-
-def check_click_diversity():
-    # Checks the click diversity of news articles in order to determine potential for personalization
-    """
-    
-    """
-
-### POTENTIAL TO SCRAPE ARTICLE INFORMATION FOR SOME SORT OF TEXT ANALYSIS WITH CHATGPT API OR WITH AN LLM LIKE T5 ### 
-### GOING TO WANT A SEPERATE MODULE FOR PREPROCESSING STEPS ### 
-
-def check_tail_genre(dataframe):
-    # TODO check the typing of the return value for the function
-    # what sorts of long tails can be exhibited by our data here? 
-    # There could be an abundance of user ratings for specific genres or specific news articles themselves, solution could be two functions for checking each?
-    # also temporal column could be being utilized in some way by the data in an annoying way
-
-    """
-    Creates a data visualization to examine the amount of ratings genres recieve so that the long tail problem can be avoided.
-
-    Args:
-        dataframe (pd.DataFrame) : A dataframe which will be charted to see if an IDF needs to be applied to ratings.
-
-    Returns:
-        genre_tail_check (?sns.plot?) : A plot object to determine if a long tail is exhibited in the data. 
-    """
-    # Copy the dataframe
-    df = dataframe.copy()
-
-    # Check the articles    
-
-
-
-
-def check_tail_articles(dataframe):
-    """
-    Creates a data visualization to examine the amount of ratings articles recieve so that the long tail problem can be avoided.
-
-    Args:
-        dataframe (pd.DataFrame) : A dataframe which will be charted to see if an IDF needs to be applied to ratings.
-
-    Returns:
-        article_tail_check (?sns.plot?) : A plot object to determine if a long tail is exhibited in the data. 
-    """
-
-
-
-## What do we want to do for our EDA with the MIND dataset? ## 
-
-##  Want to analyze the tail of reviews, to check if we want to implement an IDF weight to improve coverage
-##  Want to determine counts of the genres of all reviews
-##  Want to evaluate how many unique users there are, and the most popular interactions
-
-##  maybe want to create a total impressions column for news articles based off of users interaction history 
-##  distributions of categories and subcategories (maybe heatmaps)
-
-## all unique user ids? 
-
-## maybe feature extraction for genres?
-
-## want to keep boilerplate minimal in jupyter book so will define functions to be called here
-## Starting with basic EDA
-
-## Everything in this file is rough draft as of now as it has yet to be tested inside of a notebook, however that is fine
+    plot_category_popularity(ax=ax)
+    plot_article_popularity(ax=ax[2])

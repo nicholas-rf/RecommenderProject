@@ -20,6 +20,10 @@ import distinctipy
 import numpy as np
 import os
 
+# Path handling
+module_dir = os.path.dirname(__file__)
+data_path = os.path.join(module_dir, '../MIND_large/csv')
+emb_path = os.path.join(module_dir, '../MIND_large/embeddings')
 """
 This module contains functions that create embeddings, create and apply clusters, and visualize clustering results.
 """
@@ -147,25 +151,61 @@ def visualize_all_item_clusters(bow_embeddings, tf_embeddings, distance_metric :
     # Assign the plot a tight layout.
     plt.tight_layout()
 
+def plot_main_clusters():
+    """ 
+    Plots the item and user clusters with the parameters that we found to be the best.
+    """
+
+    item_embeddings = np.load(emb_path + '/helling_tf_.npy')
+    user_embeddings = np.load(emb_path + '/user_embeddings_euclidean_0.1_50.npy')
+
+    kmeans_item = create_kmeans_labels(SimpleImputer(strategy='mean').fit_transform(item_embeddings), n_clusters=100)
+    kmeans_user = create_kmeans_labels(user_embeddings, n_clusters=100)
+
+    colors = distinctipy.get_colors(100)
+    cmap = distinctipy.get_colormap(colors)
+
+    fig, axs = plt.subplots(1,2,figsize=(10,5))
+    axs= axs.flatten()
+    axs[0].scatter(item_embeddings[:, 0],item_embeddings[:, 1], alpha = 0.5, s=1, c=kmeans_item, cmap=cmap)
+    axs[0].set_title('Item Clusters')
+    axs[1].scatter(user_embeddings[:, 0],user_embeddings[:, 1], alpha = 0.5, s=1, c=kmeans_user, cmap=cmap)
+    axs[1].set_title('User Clusters')
+
 def item_cluster_exploration():
     """
     Combines several clustering functions and the visualization function together to make parameter exploration for item clustering more efficient
     and to improve readability of the clustering report.  
     """
     # Loading in the data for tf-idf and bag of words vectorization methods.
-    news_text = pd.read_csv('../MIND_large/csv/news.csv', index_col=0).set_index('news_id').drop(columns=['url','title_entities','abstract_entities'])
+    news_text = pd.read_csv(data_path + '/news.csv', index_col=0).set_index('news_id').drop(columns=['url','title_entities','abstract_entities'])
 
-    # Create our UMAP_embeddings for our vectorization types and distance metrics.
-    bow_matrix, tf_matrix = vectorize_items(news_text)
-    bow_embeddings = [create_UMAP_embeddings(2, bow_matrix, 'euclidean'), create_UMAP_embeddings(2, bow_matrix)]
-    tf_embeddings = [create_UMAP_embeddings(2, tf_matrix, 'euclidean'), create_UMAP_embeddings(2, tf_matrix)]
-    
-    # Apply kmeans and hdbscan clustering algorithms to our embeddings
-    embeddings = bow_embeddings + tf_embeddings
+    dist_metrics = ['euc', 'helling', 'euc', 'helling']
+    vector_metrics = ['bow', 'bow', 'tf', 'tf']
 
+    if not os.path.exists(emb_path + '/euc_bow_.npy'):
+
+        # Create our UMAP_embeddings for our vectorization types and distance metrics.
+        bow_matrix, tf_matrix = vectorize_items(news_text)
+        bow_embeddings = [create_UMAP_embeddings(2, bow_matrix, 'euclidean'), create_UMAP_embeddings(2, bow_matrix)]
+        tf_embeddings = [create_UMAP_embeddings(2, tf_matrix, 'euclidean'), create_UMAP_embeddings(2, tf_matrix)]
+        
+        # Apply kmeans and hdbscan clustering algorithms to our embeddings
+        embeddings = bow_embeddings + tf_embeddings
+
+        for index, embedding in enumerate(embeddings):
+            np.save(emb_path + f'/{dist_metrics[index]}_{vector_metrics[index]}_.npy', embedding)
+    else: 
+        embeddings = []
+        print("Embeddings found.")
+        for index in range(len(dist_metrics)):
+            embeddings.append(np.load(emb_path + f'/{dist_metrics[index]}_{vector_metrics[index]}_.npy'))
+        
+        
     kmeans_labels = [create_kmeans_labels(SimpleImputer(strategy='mean').fit_transform(embeddings[index]), n_clusters=30) for index in [0, 2, 1, 3]]
     hdbscan_labels = [create_hdbscan_labels(embeddings[index]) for index in [0, 2, 1, 3]]
-
+    bow_embeddings = embeddings[:2]
+    tf_embeddings = embedding[2:]
     # Plot clustering results
     colors = distinctipy.get_colors(30)
     cmap = distinctipy.get_colormap(colors)
@@ -180,10 +220,10 @@ def item_cluster(item_features, n_clusters, metric='hellinger', matrix_type='tf-
     Appends n_clusters clusters to the item features dataset with kmeans. Either will load in item embeddings or make them if not found.
     """
     # Standard filepath for the item embeddings.
-    fpath = "../MIND_large/embeddings/item_embeddings.npy"
+    fpath = emb_path + "/item_embeddings.npy"
 
     # Read in the news and its text, then create the tf-idf matrix.
-    news_text = pd.read_csv('../MIND_large/csv/news.csv', index_col=0).set_index('news_id').drop(columns=['url','title_entities','abstract_entities'])
+    news_text = pd.read_csv(data_path + '/news.csv', index_col=0).set_index('news_id').drop(columns=['url','title_entities','abstract_entities'])
     bow_matrix, tf_matrix = vectorize_items(news_text)
 
     # Delete the dataset to save memory.
@@ -229,7 +269,7 @@ def user_cluster_exploration():
     for metric in metrics:
         for p_comb in parameters:
             min_dist, n_neigh = p_comb
-            embeddings.append(np.load(f'../MIND_large/embeddings/user_embeddings_{metric}_{min_dist}_{n_neigh}.npy'))
+            embeddings.append(np.load(emb_path + f'/user_embeddings_{metric}_{min_dist}_{n_neigh}.npy'))
         
     # Create labels for each embedding and then plot the results.
     kmeans_labels = [cluster.KMeans(n_clusters=50,n_init='auto').fit_predict(embedding) for embedding in embeddings]
@@ -289,7 +329,7 @@ def user_cluster(features, n_clusters=50, metric='euclidean', min_dist=0.1,n_nei
     """
 
     # Initialize the path that currently points to or will point to user embeddings.
-    path = "../MIND_large/embeddings/user_embeddings.npy"
+    path = emb_path + "/user_embeddings.npy"
 
     # If the path does not exist yet, make the embeddings and save them. Otherwise load them.
     if not os.path.exists(path):
@@ -309,6 +349,9 @@ def user_cluster(features, n_clusters=50, metric='euclidean', min_dist=0.1,n_nei
     return features_new
 
 def chart(trans):
+    """
+    Deprecated 3d graph function, still around because it could be cool someday.
+    """
     #--------------------------------------------------------------------------#
     # This section is not mandatory as its purpose is to sort the data by label 
     # so, we can maintain consistent colors for digits across multiple graphs
@@ -350,8 +393,3 @@ def chart(trans):
     fig.update_traces(marker=dict(size=3, line=dict(color='black', width=0.1)))
     
     fig.show()
-
-
-
-# might want to consider making user features with sub category as well and have it match the item features? 
-# that way we could inform the weights by sub-category and category and more, yes I think thats good
