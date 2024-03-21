@@ -1,3 +1,4 @@
+import os
 import sys
 sys.path.append("/home/jovyan/work/ExploratoryAnalysis")
 from datetime import datetime
@@ -6,6 +7,10 @@ from tqdm import tqdm
 import pandas as pd
 import numpy as np
 import ExploratoryAnalysis.clustering as cm
+
+# Path handling
+module_dir = os.path.dirname(__file__)  
+data_path = os.path.join(module_dir, '../MIND_large/csv')
 
 """
 This module contains several methods used for feature extraction and to process and transform data for use in exploratory data analysis. 
@@ -32,7 +37,7 @@ def data_to_csv(behaviors : bool, fpath : str) -> None:
 
         # Read in the tsv adding names and then export it to a csv.
         df = pd.read_csv(fpath, sep='\t', names=behaviors_columns)
-        df.to_csv('../MIND_large/csv/behaviors.csv')
+        df.to_csv(data_path + '/behaviors.csv')
 
     # If we are are not changing the format of the behaviors tsv, use the news csv.
     else:
@@ -42,7 +47,7 @@ def data_to_csv(behaviors : bool, fpath : str) -> None:
 
         # Read in the tsv adding names and then export it to a csv.
         df = pd.read_csv(fpath, sep='\t', names=news_columns)
-        df.to_csv('../MIND_large/csv/news.csv')
+        df.to_csv(data_path + '/news.csv')
 
 def clean_impression(impression : str = 'N55689-1') -> dict:
     """ 
@@ -170,8 +175,8 @@ def create_popularity_csvs(news : pd.DataFrame, behaviors : pd.DataFrame) -> Non
     
     # Output the CSVs to the respective folder.
     print("Outputting To Csv")
-    news.to_csv("../MIND_large/csv/news_with_popularity.csv")
-    categories.to_csv('../MIND_large/csv/category_with_popularity.csv')
+    news.to_csv(data_path + "/news_with_popularity.csv")
+    categories.to_csv(data_path + '/category_with_popularity.csv')
         
 def decompose_interactions(news : pd.DataFrame, behaviors : pd.DataFrame) -> pd.DataFrame:
     """
@@ -251,11 +256,16 @@ def create_interaction_counts(behaviors):
     Returns:
         None : Instead of returning a value this function stores the output as a csv. 
     """
-    
+    module_dir = os.path.dirname(__file__)  # Directory where this script is located
+    data_path = os.path.join(module_dir, '../MIND_large/csv')
     # Load in the datasets and set the index of the news dataset to news id    
-    news = pd.read_csv('../MIND_large/csv/news.csv')
+    # news = pd.read_csv('../MIND_large/csv/news.csv')
+    news = pd.read_csv(data_path + '/news.csv')
+    
     copynews = news.set_index('news_id')
-    category_popularity = pd.read_csv('../MIND_large/csv/category_with_popularity.csv')
+    # category_popularity = pd.read_csv('../MIND_large/csv/category_with_popularity.csv')
+    category_popularity = pd.read_csv(data_path + '/category_with_popularity.csv')
+
     category_popularity.drop(columns=['Unnamed: 0'], inplace=True)
 
     def get_interaction_popularity(row, history=True):
@@ -314,7 +324,7 @@ def create_interaction_counts(behaviors):
     behaviors[category_popularity.columns.to_list()[1:]] = behaviors.apply(lambda row : get_interaction_popularity(row, False), axis='columns', result_type='expand')
     behaviors.rename(columns={column : column + "_impression" for column in category_popularity.columns.to_list()}, inplace=True)
 
-    behaviors.to_csv("../MIND_large/csv/behaviors_with_individual_counts.csv")
+    behaviors.to_csv(data_path + "/behaviors_with_individual_counts.csv")
 
 def modify_hourly(behaviors):
     """
@@ -362,8 +372,8 @@ def create_hourly_long():
     """
     # Load in the behaviors with individual counts dataset and the news dataset.    
     # Behaviors with individual counts is created with create_interaction_counts
-    behaviors = pd.read_csv('../MIND_large/csv/behaviors_with_individual_counts.csv')
-    news = pd.read_csv('../MIND_large/csv/news.csv')
+    behaviors = pd.read_csv(data_path + '/behaviors_with_individual_counts.csv')
+    news = pd.read_csv(data_path + '/news.csv')
 
     # Drop duplicate user ID entries and subset for the user id, time and all history popularity counts.
     unique_user_histories = behaviors.drop_duplicates(subset='user_id')[['user_id', 'time'] + [category + '_history' for category in news['category'].unique()]]
@@ -376,7 +386,7 @@ def create_hourly_long():
     unique_user_histories = modify_hourly(unique_user_histories)
 
     # Drop uneeded columns and group by hour applying a summation to all interaction counts per hour.
-    behaviors = behaviors.drop(columns=['Unnamed: 0.1', 'Unnamed: 0', 'impression_id', 'history', 'impressions'])   
+    behaviors = behaviors.drop(columns=['Unnamed: 0', 'impression_id', 'history', 'impressions'])   
     behaviors2 = behaviors.drop(columns=['time', 'user_id']).groupby('hour', observed=False).agg('sum').reset_index()
     unique_user_histories2 = unique_user_histories.drop(columns=['time', 'user_id']).groupby('hour', observed=False).agg('sum').reset_index()
 
@@ -502,7 +512,7 @@ def chunk_tf_dataset(tf_dataset):
     Args:
         tf_dataset (pd.DataFrame) : The Tensorflow compatible dataset to save as several chunks.
     """
-    fpath = f'../MIND_large/csv/tensorflow_dataset'
+    fpath = data_path + '/tensorflow_dataset'
     idx = [5161473 * i for i in range(5)]
     idx[-1] += 1
     for i in range(len(idx)-1):
