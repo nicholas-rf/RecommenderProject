@@ -1,14 +1,19 @@
 import pandas as pd 
 import numpy as np
 from ExploratoryAnalysis.clustering import create_UMAP_embeddings
+import os
 
 """
 This script is ran to generate and save several different 
 """
 
+# Path handling
+module_dir = os.path.dirname(__file__) 
+data_path = os.path.join(module_dir, '../MIND_large/csv')
+emb_path = os.path.join(module_dir, '../MIND_large/embeddings')
 
 # Read in the user features.
-user = pd.read_csv("../MIND_large/csv/user_features.csv", index_col=0)
+user = pd.read_csv(data_path + "/user_features.csv", index_col=0)
 
 # Create lists of metrics to experiment on.
 metrics = ['euclidean','cosine']
@@ -16,7 +21,7 @@ metrics = ['euclidean','cosine']
 
 parameters = [(0.1,50)]
 # Initialize a standard filename to append to when saving files.
-fname = "../MIND_large/embeddings/user_embeddings_"
+fname = emb_path + "/user_embeddings_"
 
 # Iterate over euclidean and cosine distance metrics and each parameter set in parameters.
 for metric in metrics:
