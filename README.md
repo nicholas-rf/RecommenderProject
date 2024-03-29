@@ -5,7 +5,7 @@ This serves as the final project for PSTAT 134/234 by Coby Wilcox and Nicholas R
 
 ## Directory Description
 
-* project_report.ipynb : An overview of all our work and findings, discussed in a sucinct manner.
+* project_report.ipynb : An overview of all our work and findings, discussed in a succinct manner.
 * clustering_report.ipynb : Discusses results regarding exploration of UMAP dimension reduction and clustering.
 * data_processing_documentation.ipynb : Discusses and walks through data processing.
 * eda_report.ipynb : Exploratory data analysis findings and discussion.
