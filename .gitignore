@@ -7,3 +7,4 @@ MIND_large/csv/tensorflowDataset.csv
 MIND_large/csv/tensorflowDatasetFull.csv
 MIND_large/csv/tensorflowDatasetFullGood.csv
 fastFM/**
+.DS_Store
