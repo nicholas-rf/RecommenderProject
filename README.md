@@ -20,7 +20,8 @@ This serves as the final project for PSTAT 134/234 by Coby Wilcox and Nicholas R
     * user_cluster_script.py : A script that is used to generate the dimension reduced embeddings used for exploration of user clustering parameters.
     * visualization.py : Contains several functions used to generate visualizations for exploratory data analysis.
 * MIND_large : Data
-    * CSV
+* *UNAVAILABLE: Removed to save storage on git lfs* 
+    * CSV 
         * als_testing_output.csv : ALS parameter testing outputs of RMSE and maximum update.
         * behaviors_with_individual_counts.csv : Counts iteractions with each article and category to be then used to create populatrity metrics.
         * behaviors.csv : The user behaviors data.
